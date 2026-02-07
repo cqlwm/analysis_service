@@ -111,7 +111,7 @@ class LLMProvider:
                     self.client = None
                 else:
                     self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
-                    self.model = "gpt-4-turbo-preview"
+                    self.model = "deepseek-ai/DeepSeek-V3.2"
             except ImportError:
                 print("⚠️  OpenAI未安装，请运行: pip install openai")
                 self.client = None
