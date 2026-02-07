@@ -30,9 +30,9 @@ def main():
     print(f"✅ 获取到 {len(df)} 条K线数据")
     print(f"📅 数据范围: {df['timestamp'].iloc[0]} ~ {df['timestamp'].iloc[-1]}")
     
-    # 调用LLM增强策略 (使用GPT)
+    # 调用LLM增强策略
     print("\n🤖 正在调用GPT进行市场分析...")
-    result = llm_enhanced_strategy(df, llm_provider='gpt')
+    result = llm_enhanced_strategy(df)
     
     # 打印结果
     print_enhanced_signal(result)

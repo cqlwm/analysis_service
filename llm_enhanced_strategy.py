@@ -1,12 +1,12 @@
 """
 LLM增强的Alpha Trend策略
-支持本地LLM（Ollama）和云端API（Claude/GPT）
+使用 OpenAI GPT API
 """
 
 import json
 import os
-import re
-from typing import Dict, List, Optional, Literal
+from typing import List
+from openai.types.chat import ChatCompletionMessageParam
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import pandas as pd
@@ -70,81 +70,42 @@ class NewsFlash:
 
 
 class LLMProvider:
-    """LLM提供商接口"""
+    """OpenAI LLM提供商"""
     
-    def __init__(self, provider: Literal["local", "claude", "gpt"] = "gpt"):
-        self.provider = provider
+    def __init__(self):
         self._setup_client()
     
     def _setup_client(self):
-        """初始化LLM客户端"""
-        if self.provider == "local":
-            try:
-                import ollama
-                self.client = ollama
-                self.model = "llama3.1:8b"
-            except ImportError:
-                print("⚠️  Ollama未安装，请运行: pip install ollama")
+        """初始化OpenAI客户端"""
+        try:
+            import openai
+            api_key = os.getenv("OPENAI_API_KEY")
+            base_url = os.getenv("OPENAI_API_BASE_URL")
+            if not api_key:
+                print("⚠️  请设置环境变量: OPENAI_API_KEY")
                 self.client = None
-                
-        elif self.provider == "claude":
-            try:
-                import anthropic
-                api_key = os.getenv("ANTHROPIC_API_KEY")
-                if not api_key:
-                    print("⚠️  请设置环境变量: ANTHROPIC_API_KEY")
-                    self.client = None
-                else:
-                    self.client = anthropic.Anthropic(api_key=api_key)
-                    self.model = "claude-sonnet-4-20250514"
-            except ImportError:
-                print("⚠️  Anthropic未安装，请运行: pip install anthropic")
-                self.client = None
-                
-        elif self.provider == "gpt":
-            try:
-                import openai
-                api_key = os.getenv("OPENAI_API_KEY")
-                base_url = os.getenv("OPENAI_API_BASE_URL")
-                if not api_key:
-                    print("⚠️  请设置环境变量: OPENAI_API_KEY")
-                    self.client = None
-                else:
-                    self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
-                    self.model = "deepseek-ai/DeepSeek-V3.2"
-            except ImportError:
-                print("⚠️  OpenAI未安装，请运行: pip install openai")
-                self.client = None
+            else:
+                self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
+                self.model = "deepseek-ai/DeepSeek-V3.2"
+        except ImportError:
+            print("⚠️  OpenAI未安装，请运行: pip install openai")
+            self.client = None
     
-    def generate(self, messages: List[dict], max_tokens: int = 2000) -> str:
+    def generate(self, messages: list[dict[str, str]], max_tokens: int = 2000) -> str:
         """调用LLM生成内容"""
         if not self.client:
             return self._fallback_response()
         
+        # 转换消息格式以符合OpenAI类型要求
+        chat_messages: list[ChatCompletionMessageParam] = messages  # type: ignore
+        
         try:
-            if self.provider == "local":
-                response = self.client.chat(
-                    model=self.model,
-                    messages=messages
-                )
-                return response['message']['content']
-                
-            elif self.provider == "claude":
-                response = self.client.messages.create(
-                    model=self.model,
-                    max_tokens=max_tokens,
-                    messages=messages
-                )
-                return response.content[0].text
-                
-            elif self.provider == "gpt":
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=max_tokens
-                )
-                return response.choices[0].message.content
-                
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=chat_messages,
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content or ""
         except Exception as e:
             print(f"❌ LLM调用失败: {e}")
             return self._fallback_response()
@@ -321,13 +282,12 @@ class LLMEnhancedStrategy(AlphaTrendStrategy):
     
     def __init__(
         self,
-        llm_provider: Literal["local", "claude", "gpt"] = "local",
         enable_llm: bool = True,
         **kwargs
     ):
         super().__init__(**kwargs)
         self.enable_llm = enable_llm
-        self.llm = LLMProvider(llm_provider) if enable_llm else None
+        self.llm = LLMProvider() if enable_llm else None
         self.prompts = PromptTemplates()
     
     def _build_market_context(self, df: DataFrame, index: int = -1) -> MarketContext:
@@ -556,7 +516,6 @@ class LLMEnhancedStrategy(AlphaTrendStrategy):
 def llm_enhanced_strategy(
     df: DataFrame,
     total_capital: float = 10000,
-    llm_provider: Literal["local", "claude", "gpt"] = "local",
     enable_llm: bool = True,
     flash_style: str = "professional",
     **strategy_params
@@ -567,7 +526,6 @@ def llm_enhanced_strategy(
     参数:
         df: 市场数据
         total_capital: 总资金
-        llm_provider: LLM提供商 ("local"/"claude"/"gpt")
         enable_llm: 是否启用LLM
         flash_style: 快讯风格 ("professional"/"beginner"/"social_media")
         **strategy_params: 其他策略参数
@@ -576,7 +534,6 @@ def llm_enhanced_strategy(
         包含信号、分析、快讯的完整结果
     """
     strategy = LLMEnhancedStrategy(
-        llm_provider=llm_provider,
         enable_llm=enable_llm,
         **strategy_params
     )
@@ -631,10 +588,7 @@ def print_enhanced_signal(result: dict):
 
 if __name__ == "__main__":
     print("LLM增强策略已加载")
-    print("\n支持的LLM提供商:")
-    print("- local: 本地Ollama (需要安装ollama)")
-    print("- claude: Anthropic Claude API")
-    print("- gpt: OpenAI GPT API")
+    print("\n使用 OpenAI GPT API")
     print("\n使用示例:")
-    print("result = llm_enhanced_strategy(df, llm_provider='local')")
+    print("result = llm_enhanced_strategy(df)")
     print("print_enhanced_signal(result)")
