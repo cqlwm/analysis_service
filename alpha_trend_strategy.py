@@ -1,8 +1,43 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from typing import Any, Dict
+from typing import Any, Dict, Literal, TypedDict
 import talib as ta
+
+_high = 'high'
+_low = 'low'
+_close = 'close'
+_volume = 'volume'
+_atr = 'atr'
+_atr_base_low = 'atr_base_low'
+_atr_base_high = 'atr_base_high'
+_mfi = 'mfi'
+_alpha_trend = 'alpha_trend'
+_trend_shift2_cross_signal = 'alpha_trend_shift2_cross_signal'
+_trend_close_cross_signal = 'alpha_trend_close_cross_signal'
+
+
+class NewSignalInfo(TypedDict):
+    position_side: Literal['long', 'short']
+    order_side: Literal['buy', 'sell']
+    entry_price: float
+    stop_loss_price: list[float]
+    take_profit_price: list[float]
+    entry_alpha_trend: float
+    high_since_signal: float    
+    low_since_signal: float
+    high_since_kline_count: int
+    low_since_kline_count: int
+    latest_price: float
+    key_alpha_values: list[float]
+    max_drawdown: float
+
+class IndicatorSummary(TypedDict):
+    df: DataFrame
+    info: NewSignalInfo
+    segments: list[dict[str, float]]
+    support_resistance: dict[str, list[float]]
+    
 
 
 class AlphaTrendStrategy:
@@ -43,55 +78,200 @@ class AlphaTrendStrategy:
         self.min_risk_reward_ratio = min_risk_reward_ratio
         self.max_leverage = max_leverage
         self.capital_risk_percent = capital_risk_percent
+
+
+    def _alpha_trend_indicator(self, df: DataFrame):
+        atr_multiple = self.atr_multiple
+        period = self.period
+
+        # 计算技术指标
+        high_values, low_values, close_values, volume_values = df[[_high, _low, _close, _volume]].values.T.astype(np.float64)
+        atr_values = ta.ATR(high_values, low_values, close_values, timeperiod=period)
+        atr_range_values = atr_values * atr_multiple
+        atr_base_low_values = low_values - atr_range_values
+        atr_base_high_values = high_values + atr_range_values
+        mfi_values = ta.MFI(high_values, low_values, close_values, volume_values, timeperiod=period)
+
+        df[_atr] = atr_values
+        df[_atr_base_low] = atr_base_low_values
+        df[_atr_base_high] = atr_base_high_values
+        df[_mfi] = mfi_values
+
+        alpha_trend_values = np.full(len(df), np.nan)
+        if period < len(df):
+            alpha_trend_values[period] = atr_base_low_values[period] if mfi_values[period] >= 50 else atr_base_high_values[period]
+            
+            for i in range(period + 1, len(df)):
+                if mfi_values[i] >= 50:
+                    alpha_trend_values[i] = max(alpha_trend_values[i-1], atr_base_low_values[i])
+                else:
+                    alpha_trend_values[i] = min(alpha_trend_values[i-1], atr_base_high_values[i])
         
+        df[_alpha_trend] = alpha_trend_values
+
+        alpha_trend_shift2 = df[_alpha_trend].shift(2)
+        df[_trend_shift2_cross_signal] = np.select(
+            [df[_alpha_trend] > alpha_trend_shift2, df[_alpha_trend] < alpha_trend_shift2],  
+            [1, -1],                              
+            default=np.nan
+        )
+
+        close_shift = df[_close].shift(1)
+        alpha_trend_shift = df[_alpha_trend].shift(1)
+        df[_trend_close_cross_signal] = np.select(
+            [
+                (df[_close] > df[_alpha_trend]) & (close_shift <= alpha_trend_shift), 
+                (df[_close] < df[_alpha_trend]) & (close_shift >= alpha_trend_shift)
+            ],
+            [1, -1],
+            default=np.nan
+        )
+
+        df.reset_index(inplace=True)
+        current_signal = None
+        for i in range(len(df)):
+            sig = df.at[i, _trend_shift2_cross_signal]
+            if pd.notna(sig):
+                if sig == current_signal:
+                    df.at[i, _trend_shift2_cross_signal] = np.nan
+                else:
+                    current_signal = sig
+            trend_close_cross_signal = df.at[i, _trend_close_cross_signal]
+            if pd.notna(trend_close_cross_signal):
+                if trend_close_cross_signal == current_signal:
+                    df.at[i, _trend_close_cross_signal] = np.nan
+
+        return df
+
+
+    def _compute_last_signal_info(self, df: DataFrame) -> NewSignalInfo | None:
+        """Compute last signal information: type, price, kline count"""
+        signal_series = df[_trend_shift2_cross_signal]
+        if len(signal_series.dropna()) == 0:
+            return None
+        
+        current_row = df.iloc[-1]
+        latest_price = float(current_row[_close])
+        last_signal_idx = int(signal_series.loc[signal_series.last_valid_index()])
+
+        def _find_recent_consecutive_alpha_trend(alpha_trend_values: np.ndarray, current_index: int):
+            for i in range(current_index - 2, -1, -1):
+                if not np.isnan(alpha_trend_values[i]) and alpha_trend_values[i] == alpha_trend_values[i+1] == alpha_trend_values[i+2]:
+                    return alpha_trend_values[i]
+            return np.nan
+        
+        stop_loss_reference_price = _find_recent_consecutive_alpha_trend(np.asarray(df[_alpha_trend].values), last_signal_idx)
+
+        # Calculate max/min prices since signal
+        high_index = int(df[_high].iloc[last_signal_idx:].idxmax())
+        low_index = int(df[_low].iloc[last_signal_idx:].idxmin())
+        high_kline_n = high_index - last_signal_idx + 1
+        low_kline_n = low_index - last_signal_idx + 1
+        high_since_signal = float(df.iloc[high_index][_high])
+        low_since_signal = float(df.iloc[low_index][_low])
+
+        entry_price = float(df.iloc[last_signal_idx][_close])
+        entry_alpha_trend = float(df.iloc[last_signal_idx][_alpha_trend])
+
+        alpha_trend_value = float(current_row[_alpha_trend])
+        trailing_stop_price = alpha_trend_value
+        last_signal = int(current_row[_trend_shift2_cross_signal])
+        if last_signal == 1:
+            max_drawdown = (high_since_signal - latest_price) / high_since_signal
+            if trailing_stop_price <= entry_price:
+                trailing_stop_price = stop_loss_reference_price
+        else:
+            max_drawdown = (latest_price - low_since_signal) / low_since_signal
+            if trailing_stop_price >= entry_price:
+                trailing_stop_price = stop_loss_reference_price
+
+        alpha_values = df[_alpha_trend].iloc[last_signal_idx:].values
+        _n = 2 if len(alpha_values) > 10 else 1
+        value_counts_series = pd.Series(alpha_values).value_counts()
+        frequent_values = value_counts_series[value_counts_series >= _n].index.tolist()
+        key_alpha_values = sorted(frequent_values, reverse=last_signal == -1)
+
+        info = NewSignalInfo(
+            position_side='long' if last_signal == 1 else 'short',
+            order_side='buy' if last_signal == 1 else 'sell',
+            entry_price=entry_price,
+            stop_loss_price=[stop_loss_reference_price],
+            take_profit_price=[trailing_stop_price],
+            entry_alpha_trend=entry_alpha_trend,
+            high_since_signal=high_since_signal,
+            low_since_signal=low_since_signal,
+            high_since_kline_count=high_kline_n,
+            low_since_kline_count=low_kline_n,
+            latest_price=latest_price,
+            key_alpha_values=key_alpha_values,
+            max_drawdown=max_drawdown,
+        )
+        return info
+
+    def calculate_trend_segments_stats(self, df: DataFrame) -> list[dict[str, float]]:
+        """
+        Calculate max and min high/low prices for each trend segment.
+        Trend segments are defined as periods between buy/sell signals.
+
+        Returns:
+            List of dicts with segment statistics
+        """
+        if len(df) < self.period or _trend_shift2_cross_signal not in df.columns:
+            return []
+
+        high_values, low_values, signal_values = df[[_high, _low, _trend_shift2_cross_signal]].values.T.astype(np.float64)
+
+        segments: list[dict[str, float]] = []
+
+        current_signal = None
+        high_price = float('-inf')
+        low_price = float('inf')
+        duration = 0
+        for i in range(len(signal_values)):
+            signal_item = signal_values[i]
+            if current_signal is None:
+                if signal_item == 1 or signal_item == -1:
+                    current_signal = signal_item
+                    high_price = high_values[i]
+                    low_price = low_values[i]
+            else:
+                high_price = max(high_price, high_values[i])
+                low_price = min(low_price, low_values[i])
+                duration += 1
+                if pd.notna(signal_item) and signal_item != current_signal:
+                    segments.append({
+                        'high_price': high_price,
+                        'low_price': low_price,
+                        'duration': duration
+                    })
+                    current_signal = signal_item
+                    high_price = high_values[i]
+                    low_price = low_values[i]
+                    duration = 0
+
+        return segments
+
+    def calculate_clustered_support_resistance(self, curr_price: float, segments: list[dict[str, float]]) -> dict[str, list[float]]:
+        if not segments:
+            return {'support': [], 'resistance': []}
+
+        price_levels: list[float] = []
+        for segment in segments:
+            price_levels.extend([segment['high_price'], segment['low_price']])
+
+        return {
+            'support': list(set([p for p in price_levels if not np.isnan(p) and p <= curr_price])),
+            'resistance': list(set([p for p in price_levels if not np.isnan(p) and p > curr_price])),
+        }
+
     def calculate_indicators(self, df: DataFrame) -> DataFrame:
         """
         计算所有需要的技术指标
         """
         df = df.copy()
-        high, low, close, volume = df[['high', 'low', 'close', 'volume']].values.T.astype(np.float64)
-        
-        # 1. Alpha Trend 指标
-        atr = ta.ATR(high, low, close, timeperiod=self.period)
-        atr_range = atr * self.atr_multiple
-        atr_base_low = low - atr_range
-        atr_base_high = high + atr_range
-        mfi = ta.MFI(high, low, close, volume, timeperiod=self.period)
-        
-        df['atr'] = atr
-        df['atr_base_low'] = atr_base_low
-        df['atr_base_high'] = atr_base_high
-        df['mfi'] = mfi
-        
-        # 计算 Alpha Trend 线
-        alpha_trend = np.full(len(df), np.nan)
-        if self.period < len(df):
-            alpha_trend[self.period] = (atr_base_low[self.period] if mfi[self.period] >= 50 else atr_base_high[self.period])
-            
-            for i in range(self.period + 1, len(df)):
-                if mfi[i] >= 50:
-                    alpha_trend[i] = max(alpha_trend[i-1], atr_base_low[i])
-                else:
-                    alpha_trend[i] = min(alpha_trend[i-1], atr_base_high[i])
-        
-        df['alpha_trend'] = alpha_trend
+        df = self._alpha_trend_indicator(df)
 
-        # Alpha Trend 趋势交叉信号
-        alpha_trend_shift2 = df['alpha_trend'].shift(2)
-        df['alpha_trend_shift2_cross_signal'] = np.select(
-            [
-                df['alpha_trend'] > alpha_trend_shift2, 
-                df['alpha_trend'] < alpha_trend_shift2
-            ],
-            [1, -1],                              
-            default=np.nan
-        )
-        
-        # Alpha Trend 趋势方向
-        df['alpha_trend_direction'] = np.where(
-            close > alpha_trend, 1,  # 多头
-            np.where(close < alpha_trend, -1, 0)  # 空头
-        )
+        high, low, close, volume = df[['high', 'low', 'close', 'volume']].values.T.astype(np.float64)
         
         # 2. RSI 指标
         df['rsi'] = ta.RSI(close, timeperiod=self.rsi_period)
@@ -121,14 +301,7 @@ class AlphaTrendStrategy:
         # 6. 成交量指标
         df['volume_ma'] = ta.SMA(volume, timeperiod=self.volume_ma_period)
         df['volume_ratio'] = volume / df['volume_ma']
-        
-        # 7. 支撑阻力位（使用枢轴点）
-        df['pivot'] = (high + low + close) / 3
-        df['resistance1'] = 2 * df['pivot'] - low
-        df['support1'] = 2 * df['pivot'] - high
-        df['resistance2'] = df['pivot'] + (high - low)
-        df['support2'] = df['pivot'] - (high - low)
-        
+                
         return df
     
     def detect_trend_reversal(self, df: DataFrame, index: int) -> int:
@@ -145,7 +318,7 @@ class AlphaTrendStrategy:
             
         current = df.iloc[index]
         prev1 = df.iloc[index - 1]
-        prev2 = df.iloc[index - 2]
+        # prev2 = df.iloc[index - 2]
         
         # 多头反转条件
         long_conditions = [
@@ -531,9 +704,24 @@ MFI: {current['mfi']:.2f}
 """
         return analysis.strip()
     
+    # 指标摘要
+    def generate_indicator_summary(self, df: DataFrame) -> IndicatorSummary | None:
+        newSignalInfo = self._compute_last_signal_info(df)
+        if newSignalInfo is None:
+            return None
+        
+        # 支撑阻力位
+        segments = self.calculate_trend_segments_stats(df)
+        support_resistance = self.calculate_clustered_support_resistance(newSignalInfo['latest_price'], segments)
+        return IndicatorSummary(
+            df=df,
+            info=newSignalInfo,
+            segments=segments,
+            support_resistance=support_resistance,
+        )
+        
 
-# 使用示例
-def alpha_trend_strategy( df: DataFrame, total_capital: float = 10000,**strategy_params: Any) -> Dict[str, str | int | float | dict[str, float]]:
+def alpha_trend_strategy(df: DataFrame, **strategy_params: Any):
     """
     主策略函数：输入df，输出交易信号
     
@@ -554,9 +742,9 @@ def alpha_trend_strategy( df: DataFrame, total_capital: float = 10000,**strategy
         }
     """
     strategy = AlphaTrendStrategy(**strategy_params)
-    signal = strategy.generate_signal(df, index=-1, total_capital=total_capital)
-    
-    return signal
+    df = strategy.calculate_indicators(df)
+    summary = strategy.generate_indicator_summary(df)
+
 
 
 # 便捷函数：格式化输出
