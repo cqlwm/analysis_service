@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import talib as ta
 
 
@@ -257,12 +257,7 @@ class AlphaTrendStrategy:
         
         return (score / max_score) * 100
     
-    def calculate_entry_exit_levels(
-        self, 
-        df: DataFrame, 
-        index: int, 
-        direction: int
-    ) -> Dict[str, float]:
+    def calculate_entry_exit_levels(self, df: DataFrame, index: int, direction: int) -> Dict[str, float]:
         """
         计算入场价格、止损、止盈位
         """
@@ -331,13 +326,7 @@ class AlphaTrendStrategy:
             'atr': round(atr, 2)
         }
     
-    def calculate_position_size_and_leverage(
-        self,
-        entry_price: float,
-        stop_loss: float,
-        take_profit: float,
-        total_capital: float = 10000  # 默认总资金
-    ) -> Dict[str, float]:
+    def calculate_position_size_and_leverage(self, entry_price: float, stop_loss: float, take_profit: float, total_capital: float = 10000) -> Dict[str, float]:
         """
         根据盈亏比计算推荐杠杆和仓位
         """
@@ -390,12 +379,7 @@ class AlphaTrendStrategy:
             'potential_profit': round(reward_per_unit * position_size, 2)
         }
     
-    def generate_signal(
-        self, 
-        df: DataFrame, 
-        index: int = -1,
-        total_capital: float = 10000
-    ) -> Dict:
+    def generate_signal(self, df: DataFrame, index: int = -1,total_capital: float = 10000) -> Dict[str, str | int | float | dict[str, float]]:
         """
         生成完整的交易信号
         
@@ -468,9 +452,7 @@ class AlphaTrendStrategy:
         current = df.iloc[index]
         signal_type = 'BUY' if direction == 1 else 'SELL'
         
-        analysis = self._generate_analysis_text(
-            current, direction, strength, levels, position_info
-        )
+        analysis = self._generate_analysis_text(current, direction, strength, levels, position_info)
         
         return {
             'signal': signal_type,
@@ -500,14 +482,7 @@ class AlphaTrendStrategy:
             }
         }
     
-    def _generate_analysis_text(
-        self, 
-        current: pd.Series, 
-        direction: int, 
-        strength: float,
-        levels: Dict,
-        position_info: Dict
-    ) -> str:
+    def _generate_analysis_text(self, current: pd.Series, direction: int, strength: float, levels:  Dict[str, float], position_info: Dict[str, float]) -> str:
         """
         生成分析文本
         """
@@ -574,11 +549,7 @@ MFI: {current['mfi']:.2f}
 
 
 # 使用示例
-def alpha_trend_strategy(
-    df: DataFrame, 
-    total_capital: float = 10000,
-    **strategy_params
-) -> Dict:
+def alpha_trend_strategy( df: DataFrame, total_capital: float = 10000,**strategy_params: Any) -> Dict[str, str | int | float | dict[str, float]]:
     """
     主策略函数：输入df，输出交易信号
     
@@ -605,7 +576,7 @@ def alpha_trend_strategy(
 
 
 # 便捷函数：格式化输出
-def print_trading_signal(signal: Dict):
+def print_trading_signal(signal: Dict[str, str | int | float | dict[str, float]]):
     """
     格式化打印交易信号
     """

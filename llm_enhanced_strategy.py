@@ -5,7 +5,7 @@ LLM增强的Alpha Trend策略
 
 import json
 import os
-from typing import List
+from typing import Any, List
 from openai.types.chat import ChatCompletionMessageParam
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -283,7 +283,7 @@ class LLMEnhancedStrategy(AlphaTrendStrategy):
     def __init__(
         self,
         enable_llm: bool = True,
-        **kwargs
+        **kwargs: Any
     ):
         super().__init__(**kwargs)
         self.enable_llm = enable_llm
@@ -469,7 +469,7 @@ class LLMEnhancedStrategy(AlphaTrendStrategy):
 """
         return flash.strip()
     
-    def analyze_with_llm(
+def DEQanalyze_with_llm(
         self,
         df: DataFrame,
         index: int = -1,
@@ -518,7 +518,7 @@ def llm_enhanced_strategy(
     total_capital: float = 10000,
     enable_llm: bool = True,
     flash_style: str = "professional",
-    **strategy_params
+    **strategy_params: Any
 ) -> dict:
     """
     LLM增强策略的便捷函数
