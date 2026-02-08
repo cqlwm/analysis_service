@@ -111,7 +111,10 @@ class AlphaTrendStrategy:
 
         alpha_trend_shift2 = df[_alpha_trend].shift(2)
         df[_trend_shift2_cross_signal] = np.select(
-            [df[_alpha_trend] > alpha_trend_shift2, df[_alpha_trend] < alpha_trend_shift2],  
+            [
+                (df[_alpha_trend] > alpha_trend_shift2).astype(bool), 
+                (df[_alpha_trend] < alpha_trend_shift2).astype(bool)
+            ],
             [1, -1],                              
             default=np.nan
         )
@@ -152,8 +155,8 @@ class AlphaTrendStrategy:
         
         current_row = df.iloc[-1]
         latest_price = float(current_row[_close])
-        last_signal_idx = int(signal_series.loc[signal_series.last_valid_index()])
-
+        last_signal_idx = int(signal_series.last_valid_index())  # type: ignore
+        
         def _find_recent_consecutive_alpha_trend(alpha_trend_values: np.ndarray, current_index: int):
             for i in range(current_index - 2, -1, -1):
                 if not np.isnan(alpha_trend_values[i]) and alpha_trend_values[i] == alpha_trend_values[i+1] == alpha_trend_values[i+2]:
@@ -175,7 +178,8 @@ class AlphaTrendStrategy:
 
         alpha_trend_value = float(current_row[_alpha_trend])
         trailing_stop_price = alpha_trend_value
-        last_signal = int(current_row[_trend_shift2_cross_signal])
+        
+        last_signal = int(df.iloc[last_signal_idx][_trend_shift2_cross_signal])
         if last_signal == 1:
             max_drawdown = (high_since_signal - latest_price) / high_since_signal
             if trailing_stop_price <= entry_price:
@@ -705,10 +709,10 @@ MFI: {current['mfi']:.2f}
         return analysis.strip()
     
     # 指标摘要
-    def generate_indicator_summary(self, df: DataFrame) -> IndicatorSummary | None:
+    def generate_indicator_summary(self, df: DataFrame) -> IndicatorSummary:
         newSignalInfo = self._compute_last_signal_info(df)
         if newSignalInfo is None:
-            return None
+            raise ValueError("No valid signal info found in the DataFrame")
         
         # 支撑阻力位
         segments = self.calculate_trend_segments_stats(df)
@@ -744,6 +748,9 @@ def alpha_trend_strategy(df: DataFrame, **strategy_params: Any):
     strategy = AlphaTrendStrategy(**strategy_params)
     df = strategy.calculate_indicators(df)
     summary = strategy.generate_indicator_summary(df)
+    import json
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    
 
 
 

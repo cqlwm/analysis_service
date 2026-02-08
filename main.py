@@ -10,7 +10,7 @@ from alpha_trend_strategy import alpha_trend_strategy, print_trading_signal
 def test_alpha_trend_strategy():
     """测试 Alpha Trend 策略"""
     # 交易所配置
-    symbol = 'API3/USDT'
+    symbol = 'ONDO/USDT'
     timeframe = '1h'
     limit = 200  # 需要足够数据计算指标
     
@@ -36,12 +36,12 @@ def test_alpha_trend_strategy():
     print(f"📅 数据范围: {df['timestamp'].iloc[0]} ~ {df['timestamp'].iloc[-1]}")
     
     # 调用 Alpha Trend 策略
-    signal = alpha_trend_strategy(df, total_capital=10000)
+    alpha_trend_strategy(df)
     
     # 打印信号结果
-    print_trading_signal(signal)
+    # print_trading_signal(signal)
     
-    return signal
+    # return signal
 
 def main():
     # 交易所配置
