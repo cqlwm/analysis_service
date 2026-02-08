@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 import talib as ta
 
 
@@ -530,7 +530,7 @@ MFI: {current['mfi']:.2f}
         """
         df = self.calculate_indicators(df)
         
-        signals = []
+        signals: list[dict[str, str | int | float | dict[str, float]]] = []
         for i in range(len(df)):
             direction = self.detect_trend_reversal(df, i)
             if direction != 0:
