@@ -10,7 +10,7 @@ from alpha_trend_strategy import alpha_trend_strategy, print_trading_signal
 def test_alpha_trend_strategy():
     """测试 Alpha Trend 策略"""
     # 交易所配置
-    symbol = 'ETH/USDT'
+    symbol = 'API3/USDT'
     timeframe = '1h'
     limit = 200  # 需要足够数据计算指标
     

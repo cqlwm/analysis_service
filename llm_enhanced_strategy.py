@@ -469,14 +469,14 @@ class LLMEnhancedStrategy(AlphaTrendStrategy):
 """
         return flash.strip()
     
-def DEQanalyze_with_llm(
-        self,
-        df: DataFrame,
-        index: int = -1,
-        total_capital: float = 10000,
-        generate_flash: bool = True,
-        flash_style: str = "professional"
-    ) -> dict:
+    def analyze_with_llm(
+            self,
+            df: DataFrame,
+            index: int = -1,
+            total_capital: float = 10000,
+            generate_flash: bool = True,
+            flash_style: str = "professional"
+        ) -> dict:
         """
         使用LLM增强的策略分析
         

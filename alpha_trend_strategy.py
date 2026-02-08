@@ -49,12 +49,7 @@ class AlphaTrendStrategy:
         计算所有需要的技术指标
         """
         df = df.copy()
-        
-        # 提取价格和成交量数据
-        high = df['high'].values.astype(np.float64)
-        low = df['low'].values.astype(np.float64)
-        close = df['close'].values.astype(np.float64)
-        volume = df['volume'].values.astype(np.float64)
+        high, low, close, volume = df[['high', 'low', 'close', 'volume']].values.T.astype(np.float64)
         
         # 1. Alpha Trend 指标
         atr = ta.ATR(high, low, close, timeperiod=self.period)
@@ -71,10 +66,7 @@ class AlphaTrendStrategy:
         # 计算 Alpha Trend 线
         alpha_trend = np.full(len(df), np.nan)
         if self.period < len(df):
-            alpha_trend[self.period] = (
-                atr_base_low[self.period] if mfi[self.period] >= 50 
-                else atr_base_high[self.period]
-            )
+            alpha_trend[self.period] = (atr_base_low[self.period] if mfi[self.period] >= 50 else atr_base_high[self.period])
             
             for i in range(self.period + 1, len(df)):
                 if mfi[i] >= 50:
@@ -83,6 +75,17 @@ class AlphaTrendStrategy:
                     alpha_trend[i] = min(alpha_trend[i-1], atr_base_high[i])
         
         df['alpha_trend'] = alpha_trend
+
+        # Alpha Trend 趋势交叉信号
+        alpha_trend_shift2 = df['alpha_trend'].shift(2)
+        df['alpha_trend_shift2_cross_signal'] = np.select(
+            [
+                df['alpha_trend'] > alpha_trend_shift2, 
+                df['alpha_trend'] < alpha_trend_shift2
+            ],
+            [1, -1],                              
+            default=np.nan
+        )
         
         # Alpha Trend 趋势方向
         df['alpha_trend_direction'] = np.where(
@@ -133,6 +136,10 @@ class AlphaTrendStrategy:
         检测趋势反转信号
         返回: 1=多头反转, -1=空头反转, 0=无信号
         """
+        if len(df) < 2:
+            return 0
+        if index < 0:
+            index = len(df) + index
         if index < 2:
             return 0
             
@@ -143,9 +150,9 @@ class AlphaTrendStrategy:
         # 多头反转条件
         long_conditions = [
             # 1. Alpha Trend 翻多
-            current['alpha_trend_direction'] == 1 and prev1['alpha_trend_direction'] <= 0,
+            current['alpha_trend_shift2_cross_signal'] == 1,
             # 2. 价格突破 Alpha Trend 线
-            current['close'] > current['alpha_trend'] and prev1['close'] <= prev1['alpha_trend'],
+            current['alpha_trend_direction'] == 1 and prev1['alpha_trend_direction'] <= 0,
             # 3. RSI 从超卖区反弹
             current['rsi'] > 30 and prev1['rsi'] <= 30,
             # 4. MACD 金叉或直方图转正
@@ -156,9 +163,9 @@ class AlphaTrendStrategy:
         # 空头反转条件
         short_conditions = [
             # 1. Alpha Trend 翻空
-            current['alpha_trend_direction'] == -1 and prev1['alpha_trend_direction'] >= 0,
+            current['alpha_trend_shift2_cross_signal'] == -1,
             # 2. 价格跌破 Alpha Trend 线
-            current['close'] < current['alpha_trend'] and prev1['close'] >= prev1['alpha_trend'],
+            current['alpha_trend_direction'] == -1 and prev1['alpha_trend_direction'] >= 0,
             # 3. RSI 从超买区回落
             current['rsi'] < 70 and prev1['rsi'] >= 70,
             # 4. MACD 死叉或直方图转负
@@ -524,29 +531,6 @@ MFI: {current['mfi']:.2f}
 """
         return analysis.strip()
     
-    def backtest_signals(self, df: DataFrame) -> DataFrame:
-        """
-        批量生成历史信号（用于回测）
-        """
-        df = self.calculate_indicators(df)
-        
-        signals: list[dict[str, str | int | float | dict[str, float]]] = []
-        for i in range(len(df)):
-            direction = self.detect_trend_reversal(df, i)
-            if direction != 0:
-                strength = self.calculate_signal_strength(df, i, direction)
-                if strength >= 40:
-                    levels = self.calculate_entry_exit_levels(df, i, direction)
-                    signals.append({
-                        'index': i,
-                        'timestamp': df.iloc[i].get('timestamp', i),
-                        'direction': direction,
-                        'strength': strength,
-                        **levels
-                    })
-        
-        return pd.DataFrame(signals)
-
 
 # 使用示例
 def alpha_trend_strategy( df: DataFrame, total_capital: float = 10000,**strategy_params: Any) -> Dict[str, str | int | float | dict[str, float]]:
