@@ -12,7 +12,7 @@ def test_alpha_trend_strategy():
     # 交易所配置
     symbol = 'ONDO/USDT'
     timeframe = '1h'
-    limit = 200  # 需要足够数据计算指标
+    limit = 350  # 需要足够数据计算指标
     
     # 初始化Binance
     exchange = ccxt.binance({
