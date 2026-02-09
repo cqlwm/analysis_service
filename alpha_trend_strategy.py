@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from typing import Any, Dict, Literal, TypedDict
+from typing import Dict, Literal, TypedDict
 import talib as ta
 
 _high = 'high'
@@ -628,323 +628,7 @@ class AlphaTrendStrategy:
             support_resistance=support_resistance,
         )
         
-'''
-
-{
-  "info": {
-    "position_side": "long",
-    "order_side": "buy",
-    "entry_price": 0.0068,
-    "stop_loss_price": [
-      0.008057899746665157
-    ],
-    "take_profit_price": [
-      0.008057899746665157
-    ],
-    "entry_alpha_trend": 0.006464771007465575,
-    "high_since_signal": 0.0095,
-    "low_since_signal": 0.00604,
-    "high_since_kline_count": 22,
-    "low_since_kline_count": 10,
-    "latest_price": 0.00868,
-    "key_alpha_values": [
-      0.006464771007465575,
-      0.006561978342360655,
-      0.006594014668369876,
-      0.006984628169831883,
-      0.007333730123720364
-    ],
-    "max_drawdown": 0.08631578947368417,
-    "latest_indicator_values": {
-      "atr": 0.00055,
-      "mfi": 65.8628,
-      "rsi": 66.71327,
-      "macd": 0.00031,
-      "macd_signal": 0.00028,
-      "macd_hist": 3e-05,
-      "ma20": 0.00806,
-      "ma50": 0.00735,
-      "ma200": 0.00897,
-      "bb_upper": 0.00884,
-      "bb_middle": 0.00806,
-      "bb_lower": 0.00729,
-      "volume": 17242604.0,
-      "volume_ma": 142545455.8,
-      "volume_ratio": 0.12096
-    }
-  },
-  "segments": [
-    {
-      "high_price": 0.01634,
-      "low_price": 0.01548,
-      "weight": 6,
-      "alpha_trend": 0.0165
-    },
-    {
-      "high_price": 0.01877,
-      "low_price": 0.01542,
-      "weight": 4,
-      "alpha_trend": 0.01624
-    },
-    {
-      "high_price": 0.01884,
-      "low_price": 0.01668,
-      "weight": 15,
-      "alpha_trend": 0.01692
-    },
-    {
-      "high_price": 0.01873,
-      "low_price": 0.0173,
-      "weight": 2,
-      "alpha_trend": 0.01719
-    },
-    {
-      "high_price": 0.01913,
-      "low_price": 0.01771,
-      "weight": 3,
-      "alpha_trend": 0.01761
-    },
-    {
-      "high_price": 0.01901,
-      "low_price": 0.01564,
-      "weight": 42,
-      "alpha_trend": 0.01773
-    },
-    {
-      "high_price": 0.01593,
-      "low_price": 0.01501,
-      "weight": 1,
-      "alpha_trend": 0.0159
-    },
-    {
-      "high_price": 0.0148,
-      "low_price": 0.01436,
-      "weight": 2,
-      "alpha_trend": 0.01526
-    },
-    {
-      "high_price": 0.01498,
-      "low_price": 0.01442,
-      "weight": 4,
-      "alpha_trend": 0.0152
-    },
-    {
-      "high_price": 0.01487,
-      "low_price": 0.0141,
-      "weight": 1,
-      "alpha_trend": 0.01509
-    },
-    {
-      "high_price": 0.01459,
-      "low_price": 0.01432,
-      "weight": 1,
-      "alpha_trend": 0.01495
-    },
-    {
-      "high_price": 0.01462,
-      "low_price": 0.01426,
-      "weight": 2,
-      "alpha_trend": 0.01481
-    },
-    {
-      "high_price": 0.01428,
-      "low_price": 0.01366,
-      "weight": 1,
-      "alpha_trend": 0.01437
-    },
-    {
-      "high_price": 0.01243,
-      "low_price": 0.01178,
-      "weight": 3,
-      "alpha_trend": 0.01273
-    },
-    {
-      "high_price": 0.01235,
-      "low_price": 0.012,
-      "weight": 3,
-      "alpha_trend": 0.01262
-    },
-    {
-      "high_price": 0.012,
-      "low_price": 0.01086,
-      "weight": 3,
-      "alpha_trend": 0.01208
-    },
-    {
-      "high_price": 0.011,
-      "low_price": 0.01012,
-      "weight": 5,
-      "alpha_trend": 0.01127
-    },
-    {
-      "high_price": 0.01115,
-      "low_price": 0.00983,
-      "weight": 33,
-      "alpha_trend": 0.01081
-    },
-    {
-      "high_price": 0.0104,
-      "low_price": 0.0096,
-      "weight": 14,
-      "alpha_trend": 0.01042
-    },
-    {
-      "high_price": 0.01086,
-      "low_price": 0.00987,
-      "weight": 4,
-      "alpha_trend": 0.01042
-    },
-    {
-      "high_price": 0.01034,
-      "low_price": 0.00964,
-      "weight": 8,
-      "alpha_trend": 0.01037
-    },
-    {
-      "high_price": 0.00659,
-      "low_price": 0.00595,
-      "weight": 1,
-      "alpha_trend": 0.00677
-    },
-    {
-      "high_price": 0.00747,
-      "low_price": 0.00556,
-      "weight": 34,
-      "alpha_trend": 0.00644
-    },
-    {
-      "high_price": 0.0077,
-      "low_price": 0.00653,
-      "weight": 3,
-      "alpha_trend": 0.00646
-    },
-    {
-      "high_price": 0.00767,
-      "low_price": 0.00604,
-      "weight": 7,
-      "alpha_trend": 0.00659
-    },
-    {
-      "high_price": 0.00826,
-      "low_price": 0.00674,
-      "weight": 4,
-      "alpha_trend": 0.00698
-    },
-    {
-      "high_price": 0.0095,
-      "low_price": 0.00744,
-      "weight": 11,
-      "alpha_trend": 0.00733
-    },
-    {
-      "high_price": 0.01877,
-      "low_price": 0.01539,
-      "weight": 14,
-      "alpha_trend": 0.01624
-    },
-    {
-      "high_price": 0.01913,
-      "low_price": 0.01538,
-      "weight": 69,
-      "alpha_trend": 0.01773
-    },
-    {
-      "high_price": 0.01613,
-      "low_price": 0.0042,
-      "weight": 213,
-      "alpha_trend": 0.00644
-    }
-  ],
-  "support_resistance": {
-    "support": [
-      0.00826,
-      0.0077,
-      0.00767,
-      0.00747,
-      0.00744,
-      0.00733,
-      0.00698,
-      0.00677,
-      0.00674,
-      0.00659,
-      0.00653,
-      0.00646,
-      0.00644,
-      0.00604,
-      0.00595,
-      0.00556,
-      0.0042
-    ],
-    "resistance": [
-      0.0095,
-      0.0096,
-      0.00964,
-      0.00983,
-      0.00987,
-      0.01012,
-      0.01034,
-      0.01037,
-      0.0104,
-      0.01042,
-      0.01081,
-      0.01086,
-      0.011,
-      0.01115,
-      0.01127,
-      0.01178,
-      0.012,
-      0.01208,
-      0.01235,
-      0.01243,
-      0.01262,
-      0.01273,
-      0.01366,
-      0.0141,
-      0.01426,
-      0.01428,
-      0.01432,
-      0.01436,
-      0.01437,
-      0.01442,
-      0.01459,
-      0.01462,
-      0.0148,
-      0.01481,
-      0.01487,
-      0.01495,
-      0.01498,
-      0.01501,
-      0.01509,
-      0.0152,
-      0.01526,
-      0.01538,
-      0.01539,
-      0.01542,
-      0.01548,
-      0.01564,
-      0.0159,
-      0.01593,
-      0.01613,
-      0.01624,
-      0.01634,
-      0.0165,
-      0.01668,
-      0.01692,
-      0.01719,
-      0.0173,
-      0.01761,
-      0.01771,
-      0.01773,
-      0.01873,
-      0.01877,
-      0.01884,
-      0.01901,
-      0.01913
-    ]
-  }
-}
-'''
-def generate_indicator_prompt(summary: IndicatorSummary) -> str:
+def generate_indicator_prompt(symbol: str, timeframe: str, data_range: str, summary: IndicatorSummary) -> str:
     """
     生成指标摘要的提示词
     
@@ -1022,6 +706,7 @@ def generate_indicator_prompt(summary: IndicatorSummary) -> str:
     order_side = info['order_side']
     high_since_signal = info['high_since_signal']
     low_since_signal = info['low_since_signal']
+    kline_count_since_signal = info['kline_count_since_signal']
     max_drawdown_pct = info['max_drawdown'] * 100
     
     # 计算偏离度
@@ -1067,6 +752,10 @@ def generate_indicator_prompt(summary: IndicatorSummary) -> str:
     volume_signal = '放量' if indicators['volume_ratio'] > 1 else '缩量'
     
     return f"""
+📈 交易对: {symbol}
+⏰ 时间周期: {timeframe}
+📅 数据范围: {data_range}
+
 # Alpha Trend 交易信号分析
 
 ## ⚠️ 重要提示 - 信号时效性说明
@@ -1076,21 +765,27 @@ def generate_indicator_prompt(summary: IndicatorSummary) -> str:
 - **偏离度**: {deviation_status}
 
 请根据当前实际价格走势进行分析，**不必拘泥于原始信号方向**，可灵活调整交易策略。
+- 趋势偏好：优先考虑做空, 只有在多头趋势足够强势的情况下才考虑做多
 
 ---
+
+## ⏱️ 信号时效性分析
+| 项目 | 数值 | 解读 |
+|------|------|------|
+| 信号后经过K线数 | {kline_count_since_signal} | 若时间框架1h=1小时 |
+| 入场价格 | {entry_price} | 原始入场点 |
+| 当前价格 | {latest_price} | 最新价 |
+| 价格偏离 | {price_deviation:+.2f}% | 相对入场价涨跌 |
+| 信号后最高 | {high_since_signal} | ({high_since_signal}根K线内) |
+| 信号后最低 | {low_since_signal} | ({low_since_signal}根K线内) |
+| 最大回撤 | {max_drawdown_pct:.2f}% | 信号后最大回撤 |
+| 趋势状态 | {trend_status} | 动态判断 |
 
 ## 📊 当前信号 vs 实际行情对比
 | 项目 | 数值 |
 |------|------|
 | 原始持仓方向 | {position} ({'多' if position == 'long' else '空'}) |
 | 原始交易方向 | {order_side} ({'买入' if order_side == 'buy' else '卖出'}) |
-| 入场价格 | {entry_price} |
-| 当前价格 | {latest_price} |
-| 价格偏离 | {price_deviation:+.2f}% |
-| 信号后最高 | {high_since_signal} |
-| 信号后最低 | {low_since_signal} |
-| 最大回撤 | {max_drawdown_pct:.2f}% |
-| 趋势状态 | {trend_status} |
 
 ## 🎯 关键价位
 - **当前价格**: {latest_price}
@@ -1127,37 +822,86 @@ def generate_indicator_prompt(summary: IndicatorSummary) -> str:
 - **Alpha Trend** = 动态指标线，也是重要的支撑/阻力参考
 
 ## 📝 任务要求
-请生成一篇**加密货币/交易分析帖文**，要求：
+输出行情分析报告
 
-1. **明确说明信号时效性**：提醒读者当前价格可能已偏离入场价
+1. **明确说明信号时效性**
 2. **灵活给出交易建议**：
    - 如果当前价格仍支持原趋势方向 → 建议入场/加仓
    - 如果价格已大幅回调/反弹 → 建议反向操作或观望
-   - 明确标注"建议操作"而非"必须操作"
 3. **核心内容**：
    - 当前价格位置分析（在支撑/阻力位附近还是中间）
    - 入场理由（技术指标确认）
    - 止损止盈位（根据当前价格动态调整）
    - 风险提示（信号可能已过时）
-4. **格式要求**：
-   - 标题吸引人，包含交易方向和关键价位
-   - 语言专业但通俗易懂，适合社交媒体发布
-   - 可附带emoji增加可读性
+4. markdown 格式输出
 
-请生成完整的分析帖文内容。
+请生成完整的行情分析。
 """
 
 
+# 快讯提示词
+def generate_flash_prompt():
+    return '''
+基于之前的分析编写一则交易信号快讯。
+注意：使用纯文本而非markdown格式。
 
 
-def alpha_trend_strategy(df: DataFrame, **strategy_params: Any):
-    strategy = AlphaTrendStrategy(**strategy_params)
-    df = strategy.calculate_indicators(df)
-    summary = strategy.generate_indicator_summary(df)
-    prompt = generate_indicator_prompt(summary)
-    print(prompt)
+示例1：
 
-    import json
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-    
+$ZIL dip 正在被买回，买家似乎在试图重新获得控制权。
+立即做多 $ZIL 
+
+入场：0.00455 – 0.00480
+
+止损：0.00435
+
+止盈1：0.00505
+
+止盈2：0.00535
+
+止盈3：0.00570
+
+在回调后，卖压迅速减轻，价格回软后开始出现买盘。下行幅度在被捕获之前并未拉得太远，而反弹开始显现出更好的意图。整体感觉是买家在悄悄重新布局，这通常会为进一步上涨打开空间，只要需求保持活跃。
+
+交易 $ZIL 在这里 👇
+
+
+示例2:
+
+$DUSK 反弹看起来正在失去力量，卖家开始退缩。
+立即做空 $DUSK 
+
+入场：0.114 – 0.119
+
+止损：0.126
+
+第一目标：0.107
+
+第二目标：0.098
+
+第三目标：0.089
+
+上涨的推力没有保持，买家在反弹后看起来不舒服维护收益。力量不断被卖出，而下行反应开始变得更加顺畅。流动性感觉沉重，供应压向动量，这通常有利于继续下行，如果卖家保持活跃。
+
+在这里交易 $DUSK  👇
+
+
+示例3:
+
+$YALA 强势上涨后稍作喘息，结构完好，回踩关键均线即机会。
+立即做多 $YALA 
+
+入场：0.00840 – 0.00860
+
+止损：0.00822
+
+目标1：0.00950
+
+目标2：0.00995
+
+在冲击关键阻力位后，价格进入高位盘整。买方趋势明确，短期均线形成动态支撑带。当前的缩量回调表明抛压有限，这通常是趋势延续中的健康停顿。只要价格在支撑区上方获得买盘承接，预计将再次向上测试并突破前高阻力。
+
+交易 $YALA 机会在这里 👇
+
+    '''
 
