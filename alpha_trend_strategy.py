@@ -1,4 +1,3 @@
-from turtle import st
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
@@ -43,6 +42,7 @@ class NewSignalInfo(TypedDict):
     latest_price: float
     key_alpha_values: list[float]
     max_drawdown: float
+    kline_count_since_signal: int
     latest_indicator_values: dict[str, float]
 
 class IndicatorSummary(TypedDict):
@@ -169,6 +169,7 @@ class AlphaTrendStrategy:
         current_row = df.iloc[-1]
         latest_price = float(current_row[_close])
         last_signal_idx = int(signal_series.last_valid_index())  # type: ignore
+        kline_count_since_signal = len(df) - last_signal_idx
         
         def _find_recent_consecutive_alpha_trend(alpha_trend_values: np.ndarray, current_index: int):
             for i in range(current_index - 2, -1, -1):
@@ -222,6 +223,7 @@ class AlphaTrendStrategy:
             latest_price=latest_price,
             key_alpha_values=key_alpha_values,
             max_drawdown=max_drawdown,
+            kline_count_since_signal=kline_count_since_signal,
             latest_indicator_values={
                 'atr': float(f'{current_row[_atr]:.{nf}f}'),
                 'mfi': float(f'{current_row[_mfi]:.{nf}f}'),
@@ -611,152 +613,7 @@ class AlphaTrendStrategy:
             'potential_profit': round(reward_per_unit * position_size, 2)
         }
     
-    def generate_signal(self, df: DataFrame, index: int = -1,total_capital: float = 10000) -> Dict[str, str | int | float | dict[str, float]]:
-        """
-        生成完整的交易信号
-        
-        返回:
-        {
-            'signal': 'BUY' | 'SELL' | 'HOLD',
-            'direction': 1 | -1 | 0,
-            'strength': 0-100,
-            'entry_price': float,
-            'stop_loss': float,
-            'take_profit': float,
-            'recommended_leverage': int,
-            'risk_reward_ratio': float,
-            'position_size': float,
-            'analysis': str
-        }
-        """
-        # 计算所有指标
-        df = self.calculate_indicators(df)
-        
-        # 检测信号
-        direction = self.detect_trend_reversal(df, index)
-        
-        if direction == 0:
-            return {
-                'signal': 'HOLD',
-                'direction': 0,
-                'strength': 0,
-                'analysis': '当前无明确交易信号，建议观望'
-            }
-        
-        # 计算信号强度
-        strength = self.calculate_signal_strength(df, index, direction)
-        
-        # 信号强度过低，不建议交易
-        if strength < 40:
-            return {
-                'signal': 'HOLD',
-                'direction': 0,
-                'strength': strength,
-                'analysis': f'信号强度不足（{strength:.1f}%），建议等待更好的入场机会'
-            }
-        
-        # 计算入场、止损、止盈
-        levels = self.calculate_entry_exit_levels(df, index, direction)
-        
-        # 检查盈亏比是否合理
-        entry = levels['entry_price']
-        stop = levels['stop_loss']
-        target = levels['take_profit']
-        
-        risk = abs(entry - stop)
-        reward = abs(target - entry)
-        rr_ratio = reward / risk if risk > 0 else 0
-        
-        if rr_ratio < self.min_risk_reward_ratio:
-            return {
-                'signal': 'HOLD',
-                'direction': 0,
-                'strength': strength,
-                'analysis': f'盈亏比不足（{rr_ratio:.2f}:1），最低要求{self.min_risk_reward_ratio}:1'
-            }
-        
-        # 计算仓位和杠杆
-        position_info = self.calculate_position_size_and_leverage(
-            entry, stop, target, total_capital
-        )
-        
-        # 生成分析报告
-        current = df.iloc[index]
-        signal_type = 'BUY' if direction == 1 else 'SELL'
-        
-        analysis = self._generate_analysis_text(current, direction, strength, levels, position_info)
-        
-        return {
-            'signal': signal_type,
-            'direction': direction,
-            'strength': round(strength, 1),
-            'entry_price': levels['entry_price'],
-            'stop_loss': levels['stop_loss'],
-            'take_profit': levels['take_profit'],
-            'recommended_leverage': position_info['recommended_leverage'],
-            'risk_reward_ratio': position_info['risk_reward_ratio'],
-            'risk_percent': position_info['risk_percent'],
-            'position_size': position_info['position_size'],
-            'position_value': position_info['position_value'],
-            'margin_required': position_info['margin_required'],
-            'max_loss': position_info['max_loss'],
-            'potential_profit': position_info['potential_profit'],
-            'analysis': analysis,
-            'indicators': {
-                'close': round(current['close'], 2),
-                'alpha_trend': round(current['alpha_trend'], 2),
-                'rsi': round(current['rsi'], 2),
-                'macd': round(current['macd'], 2),
-                'macd_signal': round(current['macd_signal'], 2),
-                'mfi': round(current['mfi'], 2),
-                'atr': round(current['atr'], 2),
-                'volume_ratio': round(current['volume_ratio'], 2)
-            }
-        }
-    
-    def _generate_analysis_text(self, current: pd.Series, direction: int, strength: float, levels:  Dict[str, float], position_info: Dict[str, float]) -> str:
-        """
-        生成分析文本
-        """
-        signal_name = "做多" if direction == 1 else "做空"
-        
-        analysis = f"""
-【交易信号分析】
 
-信号类型: {signal_name}
-信号强度: {strength:.1f}% {'(强)' if strength >= 70 else '(中)' if strength >= 50 else '(弱)'}
-
-【技术指标状态】
-当前价格: {current['close']:.2f}
-Alpha Trend: {current['alpha_trend']:.2f} ({('多头' if current['alpha_trend_direction'] == 1 else '空头')})
-RSI: {current['rsi']:.2f} ({('超卖' if current['rsi'] < 30 else '超买' if current['rsi'] > 70 else '中性')})
-MACD: {current['macd']:.2f} (信号线: {current['macd_signal']:.2f})
-MFI: {current['mfi']:.2f}
-成交量比率: {current['volume_ratio']:.2f}x
-
-【交易计划】
-入场价格: {levels['entry_price']:.2f}
-止损价格: {levels['stop_loss']:.2f} (风险: {abs(levels['entry_price'] - levels['stop_loss']):.2f}, {position_info['risk_percent']:.2f}%)
-止盈价格: {levels['take_profit']:.2f} (收益: {abs(levels['take_profit'] - levels['entry_price']):.2f})
-盈亏比: {position_info['risk_reward_ratio']:.2f}:1
-
-【仓位管理】
-推荐杠杆: {position_info['recommended_leverage']}x
-建议仓位: {position_info['position_size']:.4f} 单位
-持仓价值: {position_info['position_value']:.2f}
-所需保证金: {position_info['margin_required']:.2f}
-最大亏损: {position_info['max_loss']:.2f}
-潜在盈利: {position_info['potential_profit']:.2f}
-
-【风险提示】
-1. 严格执行止损，不要抱有侥幸心理
-2. 分批建仓可以降低风险（建议分2-3次入场）
-3. 盈利后及时移动止损到保本位
-4. 关注重要支撑/阻力位的突破情况
-"""
-        return analysis.strip()
-    
-    # 指标摘要
     def generate_indicator_summary(self, df: DataFrame) -> IndicatorSummary:
         newSignalInfo = self._compute_last_signal_info(df)
         if newSignalInfo is None:
@@ -771,51 +628,536 @@ MFI: {current['mfi']:.2f}
             support_resistance=support_resistance,
         )
         
+'''
+
+{
+  "info": {
+    "position_side": "long",
+    "order_side": "buy",
+    "entry_price": 0.0068,
+    "stop_loss_price": [
+      0.008057899746665157
+    ],
+    "take_profit_price": [
+      0.008057899746665157
+    ],
+    "entry_alpha_trend": 0.006464771007465575,
+    "high_since_signal": 0.0095,
+    "low_since_signal": 0.00604,
+    "high_since_kline_count": 22,
+    "low_since_kline_count": 10,
+    "latest_price": 0.00868,
+    "key_alpha_values": [
+      0.006464771007465575,
+      0.006561978342360655,
+      0.006594014668369876,
+      0.006984628169831883,
+      0.007333730123720364
+    ],
+    "max_drawdown": 0.08631578947368417,
+    "latest_indicator_values": {
+      "atr": 0.00055,
+      "mfi": 65.8628,
+      "rsi": 66.71327,
+      "macd": 0.00031,
+      "macd_signal": 0.00028,
+      "macd_hist": 3e-05,
+      "ma20": 0.00806,
+      "ma50": 0.00735,
+      "ma200": 0.00897,
+      "bb_upper": 0.00884,
+      "bb_middle": 0.00806,
+      "bb_lower": 0.00729,
+      "volume": 17242604.0,
+      "volume_ma": 142545455.8,
+      "volume_ratio": 0.12096
+    }
+  },
+  "segments": [
+    {
+      "high_price": 0.01634,
+      "low_price": 0.01548,
+      "weight": 6,
+      "alpha_trend": 0.0165
+    },
+    {
+      "high_price": 0.01877,
+      "low_price": 0.01542,
+      "weight": 4,
+      "alpha_trend": 0.01624
+    },
+    {
+      "high_price": 0.01884,
+      "low_price": 0.01668,
+      "weight": 15,
+      "alpha_trend": 0.01692
+    },
+    {
+      "high_price": 0.01873,
+      "low_price": 0.0173,
+      "weight": 2,
+      "alpha_trend": 0.01719
+    },
+    {
+      "high_price": 0.01913,
+      "low_price": 0.01771,
+      "weight": 3,
+      "alpha_trend": 0.01761
+    },
+    {
+      "high_price": 0.01901,
+      "low_price": 0.01564,
+      "weight": 42,
+      "alpha_trend": 0.01773
+    },
+    {
+      "high_price": 0.01593,
+      "low_price": 0.01501,
+      "weight": 1,
+      "alpha_trend": 0.0159
+    },
+    {
+      "high_price": 0.0148,
+      "low_price": 0.01436,
+      "weight": 2,
+      "alpha_trend": 0.01526
+    },
+    {
+      "high_price": 0.01498,
+      "low_price": 0.01442,
+      "weight": 4,
+      "alpha_trend": 0.0152
+    },
+    {
+      "high_price": 0.01487,
+      "low_price": 0.0141,
+      "weight": 1,
+      "alpha_trend": 0.01509
+    },
+    {
+      "high_price": 0.01459,
+      "low_price": 0.01432,
+      "weight": 1,
+      "alpha_trend": 0.01495
+    },
+    {
+      "high_price": 0.01462,
+      "low_price": 0.01426,
+      "weight": 2,
+      "alpha_trend": 0.01481
+    },
+    {
+      "high_price": 0.01428,
+      "low_price": 0.01366,
+      "weight": 1,
+      "alpha_trend": 0.01437
+    },
+    {
+      "high_price": 0.01243,
+      "low_price": 0.01178,
+      "weight": 3,
+      "alpha_trend": 0.01273
+    },
+    {
+      "high_price": 0.01235,
+      "low_price": 0.012,
+      "weight": 3,
+      "alpha_trend": 0.01262
+    },
+    {
+      "high_price": 0.012,
+      "low_price": 0.01086,
+      "weight": 3,
+      "alpha_trend": 0.01208
+    },
+    {
+      "high_price": 0.011,
+      "low_price": 0.01012,
+      "weight": 5,
+      "alpha_trend": 0.01127
+    },
+    {
+      "high_price": 0.01115,
+      "low_price": 0.00983,
+      "weight": 33,
+      "alpha_trend": 0.01081
+    },
+    {
+      "high_price": 0.0104,
+      "low_price": 0.0096,
+      "weight": 14,
+      "alpha_trend": 0.01042
+    },
+    {
+      "high_price": 0.01086,
+      "low_price": 0.00987,
+      "weight": 4,
+      "alpha_trend": 0.01042
+    },
+    {
+      "high_price": 0.01034,
+      "low_price": 0.00964,
+      "weight": 8,
+      "alpha_trend": 0.01037
+    },
+    {
+      "high_price": 0.00659,
+      "low_price": 0.00595,
+      "weight": 1,
+      "alpha_trend": 0.00677
+    },
+    {
+      "high_price": 0.00747,
+      "low_price": 0.00556,
+      "weight": 34,
+      "alpha_trend": 0.00644
+    },
+    {
+      "high_price": 0.0077,
+      "low_price": 0.00653,
+      "weight": 3,
+      "alpha_trend": 0.00646
+    },
+    {
+      "high_price": 0.00767,
+      "low_price": 0.00604,
+      "weight": 7,
+      "alpha_trend": 0.00659
+    },
+    {
+      "high_price": 0.00826,
+      "low_price": 0.00674,
+      "weight": 4,
+      "alpha_trend": 0.00698
+    },
+    {
+      "high_price": 0.0095,
+      "low_price": 0.00744,
+      "weight": 11,
+      "alpha_trend": 0.00733
+    },
+    {
+      "high_price": 0.01877,
+      "low_price": 0.01539,
+      "weight": 14,
+      "alpha_trend": 0.01624
+    },
+    {
+      "high_price": 0.01913,
+      "low_price": 0.01538,
+      "weight": 69,
+      "alpha_trend": 0.01773
+    },
+    {
+      "high_price": 0.01613,
+      "low_price": 0.0042,
+      "weight": 213,
+      "alpha_trend": 0.00644
+    }
+  ],
+  "support_resistance": {
+    "support": [
+      0.00826,
+      0.0077,
+      0.00767,
+      0.00747,
+      0.00744,
+      0.00733,
+      0.00698,
+      0.00677,
+      0.00674,
+      0.00659,
+      0.00653,
+      0.00646,
+      0.00644,
+      0.00604,
+      0.00595,
+      0.00556,
+      0.0042
+    ],
+    "resistance": [
+      0.0095,
+      0.0096,
+      0.00964,
+      0.00983,
+      0.00987,
+      0.01012,
+      0.01034,
+      0.01037,
+      0.0104,
+      0.01042,
+      0.01081,
+      0.01086,
+      0.011,
+      0.01115,
+      0.01127,
+      0.01178,
+      0.012,
+      0.01208,
+      0.01235,
+      0.01243,
+      0.01262,
+      0.01273,
+      0.01366,
+      0.0141,
+      0.01426,
+      0.01428,
+      0.01432,
+      0.01436,
+      0.01437,
+      0.01442,
+      0.01459,
+      0.01462,
+      0.0148,
+      0.01481,
+      0.01487,
+      0.01495,
+      0.01498,
+      0.01501,
+      0.01509,
+      0.0152,
+      0.01526,
+      0.01538,
+      0.01539,
+      0.01542,
+      0.01548,
+      0.01564,
+      0.0159,
+      0.01593,
+      0.01613,
+      0.01624,
+      0.01634,
+      0.0165,
+      0.01668,
+      0.01692,
+      0.01719,
+      0.0173,
+      0.01761,
+      0.01771,
+      0.01773,
+      0.01873,
+      0.01877,
+      0.01884,
+      0.01901,
+      0.01913
+    ]
+  }
+}
+'''
+def generate_indicator_prompt(summary: IndicatorSummary) -> str:
+    """
+    生成指标摘要的提示词
+    
+    注意：本信号基于 Alpha Trend 指标生成，信号发出时价格与当前价格可能存在偏差。
+    请根据当前实际价格走势进行分析，灵活调整交易策略。
+    """
+    info = summary['info']
+    segments = summary['segments']
+    sr = summary['support_resistance']
+    indicators = info['latest_indicator_values']
+    
+    # 取第一个支撑/阻力位
+    key_support = sr['support'][0] if sr['support'] else 'N/A'
+    key_resistance = sr['resistance'][0] if sr['resistance'] else 'N/A'
+    
+    # 从segments中提取支撑位和阻力位（带权重=停留时长）
+    latest_price = info['latest_price']
+    
+    # 定义支撑/阻力位的类型
+    class LevelWithWeight(TypedDict):
+        level: float
+        weight: int
+        source: str
+    
+    # 收集支撑位：low_price <= 当前价格 的所有水平
+    supports_with_weights: list[LevelWithWeight] = []
+    for seg in segments:
+        for level, level_type in [
+            (seg['low_price'], '关键低点'),
+            (seg['alpha_trend'], 'Alpha Trend')
+        ]:
+            if level <= latest_price:
+                supports_with_weights.append({
+                    'level': level,
+                    'weight': int(seg['weight']),
+                    'source': level_type
+                })
+    
+    # 收集阻力位：high_price > 当前价格 的所有水平
+    resistances_with_weights: list[LevelWithWeight] = []
+    for seg in segments:
+        for level, level_type in [
+            (seg['high_price'], '关键高点'),
+            (seg['alpha_trend'], 'Alpha Trend')
+        ]:
+            if level > latest_price:
+                resistances_with_weights.append({
+                    'level': level,
+                    'weight': int(seg['weight']),
+                    'source': level_type
+                })
+    
+    # 按权重（停留时长）降序排序，然后取最近的5个
+    supports_with_weights.sort(key=lambda x: (-x['weight'], -x['level']))
+    resistances_with_weights.sort(key=lambda x: (-x['weight'], x['level']))
+    
+    # 取最近的5个
+    top_supports = supports_with_weights[:5]
+    top_resistances = resistances_with_weights[:5]
+    
+    # 生成支撑位表格
+    support_table = "| 支撑位 | 停留时长(h) | 类型 |\n|--------|-------------|------|\n"
+    for s in top_supports:
+        support_table += f"| {s['level']:.6f} | {s['weight']} | {s['source']} |\n"
+    
+    # 生成阻力位表格
+    resistance_table = "| 阻力位 | 停留时长(h) | 类型 |\n|--------|-------------|------|\n"
+    for r in top_resistances:
+        resistance_table += f"| {r['level']:.6f} | {r['weight']} | {r['source']} |\n"
+    
+    # 关键数据提取
+    entry_price = info['entry_price']
+    latest_price = info['latest_price']
+    position = info['position_side']
+    order_side = info['order_side']
+    high_since_signal = info['high_since_signal']
+    low_since_signal = info['low_since_signal']
+    max_drawdown_pct = info['max_drawdown'] * 100
+    
+    # 计算偏离度
+    price_deviation = (latest_price - entry_price) / entry_price * 100
+    
+    # 偏离状态判断
+    if position == 'long':
+        if latest_price > entry_price:
+            deviation_status = f"价格高于入场价 {price_deviation:.2f}%，趋势延续"
+        else:
+            deviation_status = f"价格低于入场价 {abs(price_deviation):.2f}%，注意回调风险"
+    else:
+        if latest_price < entry_price:
+            deviation_status = f"价格低于入场价 {abs(price_deviation):.2f}%，趋势延续"
+        else:
+            deviation_status = f"价格高于入场价 {price_deviation:.2f}%，注意反弹风险"
+    
+    # 当前趋势状态
+    if position == 'long':
+        trend_status = '多头趋势中' if latest_price > entry_price else '多头回调中'
+    else:
+        trend_status = '空头趋势中' if latest_price < entry_price else '空头反弹中'
+    
+    # 盈亏比计算
+    stop_loss = info['stop_loss_price'][0]
+    take_profit = info['take_profit_price'][0]
+    
+    # RSI 解读
+    if indicators['rsi'] > 70:
+        rsi_signal = '超买区域'
+    elif indicators['rsi'] < 30:
+        rsi_signal = '超卖区域'
+    else:
+        rsi_signal = '中性区域'
+    
+    # MACD 解读
+    macd_cross = '金叉' if indicators['macd'] > indicators['macd_signal'] else '死叉'
+    
+    # MFI 解读
+    mfi_signal = '资金流入' if indicators['mfi'] >= 50 else '资金流出'
+    
+    # Volume 解读
+    volume_signal = '放量' if indicators['volume_ratio'] > 1 else '缩量'
+    
+    return f"""
+# Alpha Trend 交易信号分析
+
+## ⚠️ 重要提示 - 信号时效性说明
+本信号基于 Alpha Trend 指标生成，**信号发出时价格与当前价格可能存在偏差**：
+- **入场价格**: {entry_price}
+- **当前价格**: {latest_price}
+- **偏离度**: {deviation_status}
+
+请根据当前实际价格走势进行分析，**不必拘泥于原始信号方向**，可灵活调整交易策略。
+
+---
+
+## 📊 当前信号 vs 实际行情对比
+| 项目 | 数值 |
+|------|------|
+| 原始持仓方向 | {position} ({'多' if position == 'long' else '空'}) |
+| 原始交易方向 | {order_side} ({'买入' if order_side == 'buy' else '卖出'}) |
+| 入场价格 | {entry_price} |
+| 当前价格 | {latest_price} |
+| 价格偏离 | {price_deviation:+.2f}% |
+| 信号后最高 | {high_since_signal} |
+| 信号后最低 | {low_since_signal} |
+| 最大回撤 | {max_drawdown_pct:.2f}% |
+| 趋势状态 | {trend_status} |
+
+## 🎯 关键价位
+- **当前价格**: {latest_price}
+- **最近支撑**: {key_support}
+- **最近阻力**: {key_resistance}
+- **建议止损**: {stop_loss:.6f}
+- **建议止盈**: {take_profit:.6f}
+
+## 📈 技术指标
+| 指标 | 数值 | 信号解读 |
+|------|------|----------|
+| RSI(14) | {indicators['rsi']:.2f} | {rsi_signal} |
+| MFI | {indicators['mfi']:.2f} | {mfi_signal} |
+| ATR | {indicators['atr']:.6f} | 波动率参考 |
+| MACD | {indicators['macd']:.6f} | {macd_cross} |
+| MA20 | {indicators['ma20']:.6f} | 短期均线 |
+| MA50 | {indicators['ma50']:.6f} | 中期均线 |
+| MA200 | {indicators['ma200']:.6f} | 长期均线 |
+| BB Upper | {indicators['bb_upper']:.6f} | 布林上轨 |
+| BB Middle | {indicators['bb_middle']:.6f} | 布林中轨 |
+| BB Lower | {indicators['bb_lower']:.6f} | 布林下轨 |
+| Volume Ratio | {indicators['volume_ratio']:.2f} | {volume_signal} |
+
+## 🎯 多层级支撑与阻力（含停留时间权重）
+
+### 📉 支撑位（按停留时长排序，越坚固的越靠前）
+{support_table}
+### 📈 阻力位（按停留时长排序，越坚固的越靠前）
+{resistance_table}
+### 💡 权重解读
+- **停留时长(权重)** = 价格在该价位区间停留的小时数
+- 权重越高，该价位越"坚固"，支撑/阻力越强
+- **关键低点/高点** = 历史价格形成的明显转折点
+- **Alpha Trend** = 动态指标线，也是重要的支撑/阻力参考
+
+## 📝 任务要求
+请生成一篇**加密货币/交易分析帖文**，要求：
+
+1. **明确说明信号时效性**：提醒读者当前价格可能已偏离入场价
+2. **灵活给出交易建议**：
+   - 如果当前价格仍支持原趋势方向 → 建议入场/加仓
+   - 如果价格已大幅回调/反弹 → 建议反向操作或观望
+   - 明确标注"建议操作"而非"必须操作"
+3. **核心内容**：
+   - 当前价格位置分析（在支撑/阻力位附近还是中间）
+   - 入场理由（技术指标确认）
+   - 止损止盈位（根据当前价格动态调整）
+   - 风险提示（信号可能已过时）
+4. **格式要求**：
+   - 标题吸引人，包含交易方向和关键价位
+   - 语言专业但通俗易懂，适合社交媒体发布
+   - 可附带emoji增加可读性
+
+请生成完整的分析帖文内容。
+"""
+
+
+
 
 def alpha_trend_strategy(df: DataFrame, **strategy_params: Any):
     strategy = AlphaTrendStrategy(**strategy_params)
     df = strategy.calculate_indicators(df)
     summary = strategy.generate_indicator_summary(df)
+    prompt = generate_indicator_prompt(summary)
+    print(prompt)
+
     import json
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     
 
-
-
-# 便捷函数：格式化输出
-def print_trading_signal(signal: Dict[str, str | int | float | dict[str, float]]):
-    """
-    格式化打印交易信号
-    """
-    if signal['signal'] == 'HOLD':
-        print("=" * 60)
-        print(f"【持币观望】{signal['analysis']}")
-        print("=" * 60)
-        return
-    
-    print("=" * 60)
-    print(f"【{signal['signal']} 信号】")
-    print("=" * 60)
-    print(f"\n入场方向: {'做多 (LONG)' if signal['direction'] == 1 else '做空 (SHORT)'}")
-    print(f"信号强度: {signal['strength']}%")
-    print(f"\n入场价格: {signal['entry_price']}")
-    print(f"止损价格: {signal['stop_loss']}")
-    print(f"止盈价格: {signal['take_profit']}")
-    print(f"盈亏比: {signal['risk_reward_ratio']}:1")
-    print(f"\n推荐杠杆: {signal['recommended_leverage']}x")
-    print(f"建议仓位: {signal['position_size']} 单位")
-    print(f"所需保证金: {signal['margin_required']}")
-    print(f"潜在盈利: {signal['potential_profit']}")
-    print(f"最大亏损: {signal['max_loss']}")
-    print("\n" + "=" * 60)
-    print(signal['analysis'])
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    # 示例使用
-    print("Alpha Trend 交易策略已加载")
-    print("\n使用方法:")
-    print("1. 准备数据: df with columns ['open', 'high', 'low', 'close', 'volume']")
-    print("2. 调用策略: signal = alpha_trend_strategy(df, total_capital=10000)")
-    print("3. 查看信号: print_trading_signal(signal)")

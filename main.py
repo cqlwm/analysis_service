@@ -5,7 +5,7 @@ import pandas as pd
 dotenv.load_dotenv()
 
 from llm_enhanced_strategy import llm_enhanced_strategy, print_enhanced_signal
-from alpha_trend_strategy import alpha_trend_strategy, print_trading_signal
+from alpha_trend_strategy import alpha_trend_strategy
 
 def test_alpha_trend_strategy():
     """测试 Alpha Trend 策略"""
