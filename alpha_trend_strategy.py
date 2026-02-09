@@ -16,7 +16,18 @@ _mfi = 'mfi'
 _alpha_trend = 'alpha_trend'
 _trend_shift2_cross_signal = 'alpha_trend_shift2_cross_signal'
 _trend_close_cross_signal = 'alpha_trend_close_cross_signal'
-
+_rsi = 'rsi'
+_macd = 'macd'
+_macd_signal = 'macd_signal'
+_macd_hist = 'macd_hist'
+_ma20 = 'ma20'
+_ma50 = 'ma50'
+_ma200 = 'ma200'
+_bb_upper = 'bb_upper'
+_bb_middle = 'bb_middle'
+_bb_lower = 'bb_lower'
+_volume_ma = 'volume_ma'
+_volume_ratio = 'volume_ratio'
 
 class NewSignalInfo(TypedDict):
     position_side: Literal['long', 'short']
@@ -32,6 +43,7 @@ class NewSignalInfo(TypedDict):
     latest_price: float
     key_alpha_values: list[float]
     max_drawdown: float
+    latest_indicator_values: dict[str, float]
 
 class IndicatorSummary(TypedDict):
     # df: DataFrame
@@ -166,7 +178,6 @@ class AlphaTrendStrategy:
         
         stop_loss_reference_price = _find_recent_consecutive_alpha_trend(np.asarray(df[_alpha_trend].values), last_signal_idx)
 
-        # Calculate max/min prices since signal
         high_index = int(df[_high].iloc[last_signal_idx:].idxmax())
         low_index = int(df[_low].iloc[last_signal_idx:].idxmin())
         high_kline_n = high_index - last_signal_idx
@@ -195,6 +206,8 @@ class AlphaTrendStrategy:
         frequent_values = value_counts_series[value_counts_series >= _n].index.tolist()
         key_alpha_values = sorted(frequent_values, reverse=last_signal == -1)
 
+        nf = len(str((entry_price+latest_price)/2).split('.')[1])
+
         info = NewSignalInfo(
             position_side='long' if last_signal == 1 else 'short',
             order_side='buy' if last_signal == 1 else 'sell',
@@ -209,6 +222,23 @@ class AlphaTrendStrategy:
             latest_price=latest_price,
             key_alpha_values=key_alpha_values,
             max_drawdown=max_drawdown,
+            latest_indicator_values={
+                'atr': float(f'{current_row[_atr]:.{nf}f}'),
+                'mfi': float(f'{current_row[_mfi]:.{nf}f}'),
+                'rsi': float(f'{current_row[_rsi]:.{nf}f}'),
+                'macd': float(f'{current_row[_macd]:.{nf}f}'),
+                'macd_signal': float(f'{current_row[_macd_signal]:.{nf}f}'),
+                'macd_hist': float(f'{current_row[_macd_hist]:.{nf}f}'),
+                'ma20': float(f'{current_row[_ma20]:.{nf}f}'),
+                'ma50': float(f'{current_row[_ma50]:.{nf}f}'),
+                'ma200': float(f'{current_row[_ma200]:.{nf}f}'),
+                'bb_upper': float(f'{current_row[_bb_upper]:.{nf}f}'),
+                'bb_middle': float(f'{current_row[_bb_middle]:.{nf}f}'),
+                'bb_lower': float(f'{current_row[_bb_lower]:.{nf}f}'),
+                'volume': float(f'{current_row[_volume]:.{nf}f}'),
+                'volume_ma': float(f'{current_row[_volume_ma]:.{nf}f}'),
+                'volume_ratio': float(f'{current_row[_volume_ratio]:.{nf}f}'),
+            }
         )
         return info
 
@@ -227,17 +257,31 @@ class AlphaTrendStrategy:
 
         segments: list[dict[str, float]] = []
 
-        current_signal = None
         high_price = float('-inf')
         low_price = float('inf')
-        duration = 0
-        strength = 0
+        weight = 0
+        nf = len(str((high_values[-1]+low_values[-1])/2).split('.')[1])
         
         for i in range(len(alpha_trend)):
             if pd.notna(alpha_trend[i]):
-                strength += 1
+                if i >= 2 and alpha_trend[i] == alpha_trend[i-1] == alpha_trend[i-2]:
+                    high_price = max(high_price, high_values[i], high_values[i-1], high_values[i-2])
+                    low_price = min(low_price, low_values[i], low_values[i-1], low_values[i-2])
+                    weight += 1
+                                    
+                else:
+                    if weight > 0:
+                        segments.append({
+                            'high_price': high_price,
+                            'low_price': low_price,
+                            'weight': weight,
+                            'alpha_trend': float(f'{alpha_trend[i-1]:.{nf}f}')
+                        })
+                        weight = 0
+                        high_price = float('-inf')
+                        low_price = float('inf')
 
-
+        current_signal = None
         for i in range(len(signal_values)):
             signal_item = signal_values[i]
             if current_signal is None:
@@ -248,17 +292,18 @@ class AlphaTrendStrategy:
             else:
                 high_price = max(high_price, high_values[i])
                 low_price = min(low_price, low_values[i])
-                duration += 1
+                weight += 1
                 if pd.notna(signal_item) and signal_item != current_signal:
                     segments.append({
                         'high_price': high_price,
                         'low_price': low_price,
-                        'duration': duration
+                        'weight': weight - 2,
+                        'alpha_trend': float(f'{alpha_trend[i-1]:.{nf}f}')
                     })
                     current_signal = signal_item
                     high_price = high_values[i]
                     low_price = low_values[i]
-                    duration = 0
+                    weight = 0
 
         return segments
 
@@ -266,47 +311,19 @@ class AlphaTrendStrategy:
         if not segments:
             return {'support': [], 'resistance': []}
 
-        price_levels: list[float] = []
+        price_levels: set[float] = set()
         for segment in segments:
-            price_levels.extend([segment['high_price'], segment['low_price']])
+            price_levels.update([segment['high_price'], segment['low_price'], segment['alpha_trend']])
 
-        return {
-            'support': list(set([p for p in price_levels if not np.isnan(p) and p <= curr_price])),
-            'resistance': list(set([p for p in price_levels if not np.isnan(p) and p > curr_price])),
-        }
+        support = [p for p in price_levels if not np.isnan(p) and p <= curr_price]
+        support.sort(reverse=True)
 
-    def find_support_resistance_levels(self, df: DataFrame, lookback: int = 50) -> dict[str, list[float]]:
-        """
-        寻找支撑和阻力位
-        
-        返回: (support_levels, resistance_levels)
-        """
-        recent = df.tail(lookback)
-        
-        highs = np.array(recent['high'], dtype=np.float64)
-        lows = np.array(recent['low'], dtype=np.float64)
-        
-        resistance: list[float] = []
-        support: list[float] = []
-        
-        for i in range(2, len(recent) - 2):
-            # 阻力位：当前高点高于前后高点
-            if (highs[i] > highs[i-1] and highs[i] > highs[i-2] and
-                highs[i] > highs[i+1] and highs[i] > highs[i+2]):
-                resistance.append(highs[i])
-            
-            # 支撑位：当前低点低于前后低点
-            if (lows[i] < lows[i-1] and lows[i] < lows[i-2] and
-                lows[i] < lows[i+1] and lows[i] < lows[i+2]):
-                support.append(lows[i])
-        
-        # 按价格排序
-        resistance.sort(reverse=True)
-        support.sort()
-        
+        resistance = [p for p in price_levels if not np.isnan(p) and p > curr_price]
+        resistance.sort()
+
         return {
             'support': support,
-            'resistance': resistance
+            'resistance': resistance,
         }
 
     def calculate_indicators(self, df: DataFrame) -> DataFrame:
@@ -316,39 +333,26 @@ class AlphaTrendStrategy:
         df = df.copy()
         df = self._alpha_trend_indicator(df)
 
-        open, high, low, close, volume = df[['open', 'high', 'low', 'close', 'volume']].values.T.astype(np.float64)
+        close, volume = df[['close', 'volume']].values.T.astype(np.float64)
         
-        # 2. RSI 指标
         df['rsi'] = ta.RSI(close, timeperiod=self.rsi_period)
         
-        # 3. MACD 指标
-        macd, macd_signal, macd_hist = ta.MACD(
-            close, 
-            fastperiod=self.macd_fast,
-            slowperiod=self.macd_slow, 
-            signalperiod=self.macd_signal
-        )
+        macd, macd_signal, macd_hist = ta.MACD(close, fastperiod=self.macd_fast, slowperiod=self.macd_slow, signalperiod=self.macd_signal)
         df['macd'] = macd
         df['macd_signal'] = macd_signal
         df['macd_hist'] = macd_hist
         
-        # 4. 均线系统
         df['ma20'] = ta.SMA(close, timeperiod=20)
         df['ma50'] = ta.SMA(close, timeperiod=50)
         df['ma200'] = ta.SMA(close, timeperiod=200)
         
-        # 5. 布林带
         upper, middle, lower = ta.BBANDS(close, timeperiod=20)
         df['bb_upper'] = upper
         df['bb_middle'] = middle
         df['bb_lower'] = lower
         
-        # 6. 成交量指标
         df['volume_ma'] = ta.SMA(volume, timeperiod=self.volume_ma_period)
         df['volume_ratio'] = volume / df['volume_ma']
-
-        df['cdl_morningstar'] = ta.CDLMORNINGSTAR(open, high, low, close)
-        df['cdl_eveningstar'] = ta.CDLEVENINGSTAR(open, high, low, close)
                 
         return df
     
@@ -769,25 +773,6 @@ MFI: {current['mfi']:.2f}
         
 
 def alpha_trend_strategy(df: DataFrame, **strategy_params: Any):
-    """
-    主策略函数：输入df，输出交易信号
-    
-    参数:
-        df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
-        total_capital: 总资金量
-        **strategy_params: 策略参数（可选）
-        
-    返回:
-        {
-            'signal': 'BUY' | 'SELL' | 'HOLD',
-            'entry_price': float,
-            'stop_loss': float,
-            'take_profit': float,
-            'recommended_leverage': int,
-            'risk_reward_ratio': float,
-            ...
-        }
-    """
     strategy = AlphaTrendStrategy(**strategy_params)
     df = strategy.calculate_indicators(df)
     summary = strategy.generate_indicator_summary(df)

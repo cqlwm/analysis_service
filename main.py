@@ -10,18 +10,18 @@ from alpha_trend_strategy import alpha_trend_strategy, print_trading_signal
 def test_alpha_trend_strategy():
     """测试 Alpha Trend 策略"""
     # 交易所配置
-    symbol = 'ONDO/USDT'
+    symbol = 'YALA/USDT'
     timeframe = '1h'
     limit = 350  # 需要足够数据计算指标
     
     # 初始化Binance
     exchange = ccxt.binance({
         'enableRateLimit': True,
+        'options': {
+            'defaultType': 'future',
+        },
     })
     
-    print("=" * 60)
-    print("📊 Alpha Trend 策略回测")
-    print("=" * 60)
     print(f"📈 交易对: {symbol}")
     print(f"⏰ 时间周期: {timeframe}")
     
