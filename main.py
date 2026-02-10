@@ -10,21 +10,46 @@ from openai.types.chat.chat_completion_message_param import ChatCompletionMessag
 from pandas import DataFrame
 import time
 import json
-import threading
 
 from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, generate_indicator_prompt
 from binance_ticker_monitor import BinanceTickerMonitor
 
 dotenv.load_dotenv()
 
+# 初始化OpenAI客户端
+api_key = os.getenv("OPENAI_API_KEY")
+base_url = os.getenv("OPENAI_API_BASE_URL", "https://api.siliconflow.cn/v1")
+model_name = os.getenv("MODEL_NAME", "deepseek-ai/DeepSeek-V3.2")
+
+if not api_key:
+    raise ValueError("OPENAI_API_KEY not set")
+
+client = openai.OpenAI(api_key=api_key, base_url=base_url)
+
+exchange = ccxt.binance({
+    'enableRateLimit': True,
+    'options': {
+        'defaultType': 'future',
+    },
+})
+exchange.load_markets()
+
+CACHE_DIR = "data/cache"
+LAST_GEN_FILE = f"{CACHE_DIR}/last_generation.json"
+
+def load_last_generation_time():
+    if os.path.exists(LAST_GEN_FILE):
+        with open(LAST_GEN_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_last_generation_time(data):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    with open(LAST_GEN_FILE, 'w') as f:
+        json.dump(data, f)
+
 
 def fetch_ohlcv(symbol: str, timeframe: str = '1h') -> DataFrame:
-    exchange = ccxt.binance({
-        'enableRateLimit': True,
-        'options': {
-            'defaultType': 'future',
-        },
-    })
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=350)
     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -41,16 +66,6 @@ def generate_post(symbol: str, timeframe: str, df: DataFrame):
         data_range=f'{df["timestamp"].iloc[0]} ~ {df["timestamp"].iloc[-1]}',
         summary=summary
     )
-
-    # 初始化OpenAI客户端
-    api_key = os.getenv("OPENAI_API_KEY")
-    base_url = os.getenv("OPENAI_API_BASE_URL")
-    model_name = os.getenv("MODEL_NAME", "deepseek-ai/DeepSeek-V3.2")
-
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY not set")
-
-    client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     # 根据指标摘要生成分析报告
     messages: list[ChatCompletionMessageParam] = [
@@ -114,17 +129,29 @@ def save_post(symbol: str, post: str, extra_data: dict | None = None):
 monitor = BinanceTickerMonitor(volatility_threshold=5.0)
 
 def main():
+    last_generation_time = load_last_generation_time()
     monitor.start()
     time.sleep(3)
-    while True:
+    while monitor.running:
         symbols = monitor.get_high_volatility_symbols()
 
         for symbol in symbols[:20]:
             symbol_name = symbol['symbol']
             timeframe = "1h"
+            
+            current_time = time.time()
+            if symbol_name in last_generation_time:
+                elapsed = current_time - last_generation_time[symbol_name]
+                if elapsed < 3600:
+                    print(f"⏭️ 跳过 {symbol_name} (距上次 {int(elapsed)}秒)")
+                    continue
+            
             ohlcv_df = fetch_ohlcv(symbol_name, timeframe)
             post = generate_post(symbol_name, timeframe, ohlcv_df)
             save_post(symbol_name, post)
+            
+            last_generation_time[symbol_name] = current_time
+            save_last_generation_time(last_generation_time)
 
 if __name__ == "__main__":
     main()
