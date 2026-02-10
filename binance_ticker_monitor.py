@@ -1,6 +1,7 @@
 """
 Binance 合约市场 Ticker 监控器
-订阅合约市场所有交易对的 miniTicker，计算多周期涨跌幅，过滤高波动率交易对
+订阅合约市场所有交易对的完整Ticker(!ticker@arr)，计算多周期涨跌幅，过滤高波动率交易对
+特点：24小时涨跌幅直接使用币安官方数据(P字段)，其他周期通过历史价格计算
 """
 
 import json
@@ -15,8 +16,8 @@ import threading
 class BinanceTickerMonitor:
     """Binance合约市场Ticker监控器"""
     
-    # 使用合约市场WebSocket
-    WS_URL = "wss://fstream.binance.com/ws/!miniTicker@arr"
+    # 使用合约市场WebSocket - !ticker@arr 返回完整24小时ticker数据（包含P字段：24h涨跌幅百分比）
+    WS_URL = "wss://fstream.binance.com/ws/!ticker@arr"
     
     # 时间窗口配置 (秒)
     TIME_WINDOWS = {
@@ -101,22 +102,29 @@ class BinanceTickerMonitor:
     def calculate_all_changes(self, symbol: str) -> Dict[str, Optional[float]]:
         """
         计算所有时间窗口的涨跌幅
-        
+        - 5m, 15m, 1h, 4h: 通过历史价格计算
+        - 24h: 直接使用币安返回的P字段（24小时价格变化百分比）
+
         Returns:
             {时间窗口: 涨跌幅百分比}
         """
         if symbol not in self.latest_tickers:
             return {k: None for k in self.TIME_WINDOWS.keys()}
-        
+
         ticker = self.latest_tickers[symbol]
         current_price = float(ticker['c'])
         current_time = time.time()
-        
+
         changes = {}
         for window_name, window_seconds in self.TIME_WINDOWS.items():
-            change = self._calculate_price_change(symbol, window_seconds, current_time, current_price)
-            changes[window_name] = change
-        
+            if window_name == '24h':
+                # 24小时涨跌幅直接使用币安返回的数据（更精确）
+                changes[window_name] = float(ticker.get('P', 0))
+            else:
+                # 其他时间窗口通过历史价格计算
+                change = self._calculate_price_change(symbol, window_seconds, current_time, current_price)
+                changes[window_name] = change
+
         return changes
     
     def get_high_volatility_symbols(self) -> List[dict]:
@@ -156,7 +164,7 @@ class BinanceTickerMonitor:
         try:
             data = json.loads(message)
             
-            # !miniTicker@arr 返回的是数组
+            # !ticker@arr 返回的是数组，包含完整的24小时统计数据（含P字段：24h涨跌幅百分比）
             if isinstance(data, list):
                 current_time = time.time()
                 
