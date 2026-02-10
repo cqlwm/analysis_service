@@ -8,6 +8,8 @@ from openai.types.chat.chat_completion_user_message_param import ChatCompletionU
 from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pandas import DataFrame
+import time
+import json
 
 from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, generate_indicator_prompt
 
@@ -77,17 +79,23 @@ def generate_post(symbol:str, timeframe: str, df: DataFrame):
     )
     final_post = response2.choices[0].message.content or ""
     
-    print(final_post)
+    return final_post
 
-def save_post(post: str):
-    with open('data/post.txt', 'w') as f:
-        f.write(post)
+def save_post(symbol: str, post: str):
+    symbol = symbol.replace('/USDT', '')
+    timestamp = int(time.time())
+    with open(f'data/{symbol}_{timestamp}.json', 'w') as f:
+        f.write(json.dumps({
+            'symbols': [symbol],
+            'content': post,
+        }, indent=4, ensure_ascii=False))
 
 def main():
-    symbol='BTC/USDT'
+    symbol='COLLECT/USDT'
     timeframe='1h'
     ohlcv_df = fetch_ohlcv(symbol, timeframe)
-    generate_post(symbol, timeframe, ohlcv_df)
+    post = generate_post(symbol, timeframe, ohlcv_df)
+    save_post(symbol, post)
 
 if __name__ == "__main__":
     main()
