@@ -53,6 +53,7 @@ class BinanceTickerMonitor:
         
         self.ws = None
         self.running = False
+        self._lock = threading.RLock()
         
     def _clean_old_data(self, symbol: str, current_time: float):
         """清理过期的历史数据"""
@@ -108,24 +109,25 @@ class BinanceTickerMonitor:
         Returns:
             {时间窗口: 涨跌幅百分比}
         """
-        if symbol not in self.latest_tickers:
-            return {k: None for k in self.TIME_WINDOWS.keys()}
+        with self._lock:
+            if symbol not in self.latest_tickers:
+                return {k: None for k in self.TIME_WINDOWS.keys()}
 
-        ticker = self.latest_tickers[symbol]
-        current_price = float(ticker['c'])
-        current_time = time.time()
+            ticker = self.latest_tickers[symbol]
+            current_price = float(ticker['c'])
+            current_time = time.time()
 
-        changes = {}
-        for window_name, window_seconds in self.TIME_WINDOWS.items():
-            if window_name == '24h':
-                # 24小时涨跌幅直接使用币安返回的数据（更精确）
-                changes[window_name] = float(ticker.get('P', 0))
-            else:
-                # 其他时间窗口通过历史价格计算
-                change = self._calculate_price_change(symbol, window_seconds, current_time, current_price)
-                changes[window_name] = change
+            changes = {}
+            for window_name, window_seconds in self.TIME_WINDOWS.items():
+                if window_name == '24h':
+                    # 24小时涨跌幅直接使用币安返回的数据（更精确）
+                    changes[window_name] = float(ticker.get('P', 0))
+                else:
+                    # 其他时间窗口通过历史价格计算
+                    change = self._calculate_price_change(symbol, window_seconds, current_time, current_price)
+                    changes[window_name] = change
 
-        return changes
+            return changes
     
     def get_high_volatility_symbols(self) -> List[dict]:
         """
@@ -135,25 +137,25 @@ class BinanceTickerMonitor:
             按波动率排序的高波动率交易对列表
         """
         high_vol_symbols = []
-        
-        for symbol, ticker in self.latest_tickers.items():
-            changes = self.calculate_all_changes(symbol)
-            
-            # 检查是否有任何时间窗口超过阈值
-            max_change = max(
-                (abs(v) for v in changes.values() if v is not None),
-                default=0
-            )
-            
-            if max_change >= self.volatility_threshold:
-                high_vol_symbols.append({
-                    'symbol': symbol,
-                    'current_price': float(ticker['c']),
-                    'changes': changes,
-                    'max_change': max_change,
-                    'volume_24h': float(ticker.get('v', 0)),
-                    'quote_volume': float(ticker.get('q', 0)),
-                })
+        with self._lock:
+            for symbol, ticker in self.latest_tickers.items():
+                changes = self.calculate_all_changes(symbol)
+                
+                # 检查是否有任何时间窗口超过阈值
+                max_change = max(
+                    (abs(v) for v in changes.values() if v is not None),
+                    default=0
+                )
+                
+                if max_change >= self.volatility_threshold:
+                    high_vol_symbols.append({
+                        'symbol': symbol,
+                        'current_price': float(ticker['c']),
+                        'changes': changes,
+                        'max_change': max_change,
+                        'volume_24h': float(ticker.get('v', 0)),
+                        'quote_volume': float(ticker.get('q', 0)),
+                    })
         
         # 按最大波动率排序
         high_vol_symbols.sort(key=lambda x: x['max_change'], reverse=True)
@@ -168,18 +170,19 @@ class BinanceTickerMonitor:
             if isinstance(data, list):
                 current_time = time.time()
                 
-                for ticker in data:
-                    symbol = ticker['s']
-                    price = float(ticker['c'])
+                with self._lock:
+                    for ticker in data:
+                        symbol = ticker['s']
+                        price = float(ticker['c'])
+                        
+                        # 更新价格历史
+                        self._update_price_history(symbol, price, current_time)
+                        
+                        # 保存最新ticker
+                        self.latest_tickers[symbol] = ticker
                     
-                    # 更新价格历史
-                    self._update_price_history(symbol, price, current_time)
-                    
-                    # 保存最新ticker
-                    self.latest_tickers[symbol] = ticker
-                
-                self.stats['total_symbols'] = len(self.latest_tickers)
-                self.stats['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    self.stats['total_symbols'] = len(self.latest_tickers)
+                    self.stats['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
         except Exception as e:
             print(f"处理消息时出错: {e}")

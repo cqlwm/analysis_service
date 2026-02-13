@@ -842,7 +842,7 @@ def generate_indicator_prompt(symbol: str, timeframe: str, data_range: str, summ
 # 快讯提示词
 def generate_flash_prompt():
     return '''
-基于之前的分析编写一则交易信号快讯。
+基于上述指标信息和行情分析报告编写一则交易信号快讯。
 注意：使用纯文本而非markdown格式。
 
 

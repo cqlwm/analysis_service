@@ -93,9 +93,9 @@ def generate_post(symbol: str, timeframe: str, df: DataFrame):
         model=model_name,
         messages=messages,
         max_tokens=200,
-        extra_body={
-            'enable_thinking': True
-        }
+        # extra_body={
+        #     'enable_thinking': True
+        # }
     )
     final_post = response2.choices[0].message.content or ""
 
@@ -146,12 +146,15 @@ def main():
                     print(f"⏭️ 跳过 {symbol_name} (距上次 {int(elapsed)}秒)")
                     continue
             
-            ohlcv_df = fetch_ohlcv(symbol_name, timeframe)
-            post = generate_post(symbol_name, timeframe, ohlcv_df)
-            save_post(symbol_name, post)
-            
-            last_generation_time[symbol_name] = current_time
-            save_last_generation_time(last_generation_time)
+            try:
+                ohlcv_df = fetch_ohlcv(symbol_name, timeframe)
+                post = generate_post(symbol_name, timeframe, ohlcv_df)
+                save_post(symbol_name, post)
+            except Exception as e:
+                print(e)
+            finally:
+                last_generation_time[symbol_name] = current_time
+                save_last_generation_time(last_generation_time)
 
 if __name__ == "__main__":
     main()
