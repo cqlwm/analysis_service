@@ -76,7 +76,7 @@ def backtest_signal(signal):
     
     take_profits = sorted(take_profits, reverse=(position_direction == 'short'))
     
-    signal_timestamp = int(signal['timestamp']) * 1000
+    signal_timestamp = int(signal['timestamp'])
     ohlcv_data = fetch_ohlcv_since(symbol, signal_timestamp)
     
     if not ohlcv_data:

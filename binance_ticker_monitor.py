@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Tuple
 import websocket
 import threading
 
+from symbol import Symbol
+
 
 class BinanceTickerMonitor:
     """Binance合约市场Ticker监控器"""
@@ -138,8 +140,9 @@ class BinanceTickerMonitor:
         """
         high_vol_symbols = []
         with self._lock:
-            for symbol, ticker in self.latest_tickers.items():
-                changes = self.calculate_all_changes(symbol)
+            for symbol_str, ticker in self.latest_tickers.items():
+                sym = Symbol.parse(symbol_str)
+                changes = self.calculate_all_changes(symbol_str)
                 
                 # 检查是否有任何时间窗口超过阈值
                 max_change = max(
@@ -149,7 +152,8 @@ class BinanceTickerMonitor:
                 
                 if max_change >= self.volatility_threshold:
                     high_vol_symbols.append({
-                        'symbol': symbol,
+                        'symbol': sym,
+                        'symbol_str': symbol_str,
                         'current_price': float(ticker['c']),
                         'changes': changes,
                         'max_change': max_change,

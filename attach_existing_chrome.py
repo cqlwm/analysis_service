@@ -9,6 +9,8 @@ from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError
 
+from symbol import Symbol
+
 dotenv.load_dotenv()
 
 CHROME_BIN = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -65,8 +67,8 @@ def ensure_debug_chrome_running() -> None:
 def focus_input_box(page: Page):
     page.click('div.json-article-editor')
 
-def input_symbol(page: Page, symbol: str):
-    page.keyboard.type(f'${symbol}')
+def input_symbol(page: Page, symbol: Symbol):
+    page.keyboard.type(symbol.with_prefix)
     selector = '.tippy-box .tippy-content .bg-cardBg'
     try:
         page.wait_for_selector(selector, timeout=10000)
@@ -74,20 +76,20 @@ def input_symbol(page: Page, symbol: str):
         container = page.locator(selector)
         children = container.locator('.text-PrimaryText').all()
         for child in children:
-            if child.text_content() == symbol:
+            if child.text_content() == symbol.clean:
                 print(child.text_content())
                 child.click()
                 break
     except TimeoutError:
         # 如果没有等到该元素, 说明不存在现货symbol, 可以忽略超时
-        print(f'{symbol}现货标签没找到')
+        print(f'{symbol.clean}现货标签没找到')
     finally:
         page.keyboard.type(' ')
 
 def input_text(page: Page, text: str):
     page.keyboard.type(text)
 
-def input_trade_widget(page: Page, symbol: str, is_search: bool = False):
+def input_trade_widget(page: Page, symbol: Symbol, is_search: bool = False):
     trade_widget_list_selector = '.bg-CardBg .text-PrimaryText'
     try:
         # 如果需要使用搜索的方式, 超时为0, 快速失败
@@ -98,10 +100,10 @@ def input_trade_widget(page: Page, symbol: str, is_search: bool = False):
             page.click('.trade-widget-icon.icon-box')
             symbol_name_input_selector = '.bg-CardBg .bn-textField-input'
             page.wait_for_selector(symbol_name_input_selector)
-            page.fill(symbol_name_input_selector, symbol)
+            page.fill(symbol_name_input_selector, symbol.clean)
             time.sleep(1)
 
-    target = f'{symbol}USDT'
+    target = symbol.full
     elements = page.locator(trade_widget_list_selector).all()
     for el in elements:
         print(el.text_content())
@@ -143,7 +145,7 @@ def open_page(target_url: str, run: Callable[[Page], None]):
 
         run(page)
 
-def posting(symbol: str, content: str):
+def posting(symbol: Symbol, content: str):
     def run(page: Page):
         focus_input_box(page)
         input_symbol(page, symbol)
@@ -182,9 +184,9 @@ def main() -> None:
             page.goto(TARGET_URL, wait_until="domcontentloaded")
             print(f"打开新标签页: {page.url}")
 
-        symbol = 'PIPPIN'
+        symbol = Symbol.parse('PIPPIN')
         text = '''各位专家，
-这个拿到什么位置合适出？
+        这个拿到什么位置合适出？
         '''
 
         page.click('div.json-article-editor')
