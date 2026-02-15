@@ -13,6 +13,7 @@ import json
 
 from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, generate_indicator_prompt
 from binance_ticker_monitor import BinanceTickerMonitor
+from attach_existing_chrome import posting
 
 dotenv.load_dotenv()
 
@@ -105,8 +106,7 @@ def generate_post(symbol: str, timeframe: str, df: DataFrame):
 
 def extract_signal_json(symbol: str, post_content: str) -> dict | None:
     """从生成的post中提取交易信号JSON"""
-    symbol_clean = symbol.removesuffix('USDT').removesuffix('/')
-    
+
     extract_prompt = f"""从以下交易信号文章中提取关键交易信息，输出纯JSON格式，不要包含任何其他内容。
 
 文章内容：
@@ -114,7 +114,7 @@ def extract_signal_json(symbol: str, post_content: str) -> dict | None:
 
 请提取以下格式的JSON：
 {{
-    "symbol": "{symbol_clean}",
+    "symbol": "{symbol}",
     "position_direction": "short" 或 "long",
     "entry_price": [最小入场价, 最大入场价],
     "stop_loss_price": 止损价,
@@ -146,6 +146,8 @@ def extract_signal_json(symbol: str, post_content: str) -> dict | None:
         )
         result = response.choices[0].message.content or ""
         if len(result) > 2 and result[0] == "{" and result[-1] == "}":
+            result_json = json.loads(result)
+            result_json[symbol] = symbol
             return json.loads(result)
     except Exception as e:
         print(f"提取JSON信号失败: {e}")
@@ -230,7 +232,10 @@ def main():
         for symbol in symbols[:20]:
             symbol_name = symbol['symbol']
             timeframe = "1h"
-            
+
+            if not symbol_name.endswith('USDT'):
+                continue
+
             current_time = time.time()
             if symbol_name in last_generation_time:
                 elapsed = current_time - last_generation_time[symbol_name]
@@ -244,8 +249,11 @@ def main():
                 post_text = generate_post(symbol_name, timeframe, ohlcv_df)
                 post_data = save_post(symbol_name, post_text)
 
-                signal_json = extract_signal_json(symbol_name, post_text)
+                symbol_clean = symbol_name.removesuffix('USDT').removesuffix('/')
+                signal_json = extract_signal_json(symbol_clean, post_text)
                 save_signals_to_csv(signal_json, post_data["timestamp"])
+
+                posting(symbol_clean, post_text.replace(f'${symbol_clean}', symbol_clean))
             except Exception as e:
                 print(e)
             finally:

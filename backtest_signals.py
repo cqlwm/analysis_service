@@ -30,6 +30,20 @@ def load_signals():
     return signals
 
 
+def load_existing_results():
+    existing = {}
+    if not os.path.exists(OUTPUT_FILE):
+        return existing
+    
+    with open(OUTPUT_FILE, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['result'] in ('stop_loss', 'take_profit'):
+                key = (row['timestamp'], row['symbol'])
+                existing[key] = row
+    return existing
+
+
 def fetch_ohlcv_since(symbol, timestamp_ms, limit=500):
     try:
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe=TIMEFRAME, since=timestamp_ms, limit=limit)
@@ -128,6 +142,17 @@ def backtest_signal(signal):
                 continue
             break
     
+    if result['result'] == 'holding' and ohlcv_data:
+        latest_price = ohlcv_data[-1][4]
+        if position_direction == 'short':
+            result['exit_price'] = latest_price
+            result['pnl_pct'] = round((entry_price - latest_price) / entry_price * 100, 2)
+            result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
+        else:
+            result['exit_price'] = latest_price
+            result['pnl_pct'] = round((latest_price - entry_price) / entry_price * 100, 2)
+            result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
+    
     return result
 
 
@@ -176,8 +201,19 @@ def main():
     signals = load_signals()
     print(f"加载了 {len(signals)} 个信号")
     
+    existing_results = load_existing_results()
+    print(f"已有 {len(existing_results)} 个回测结果 (止盈/止损)")
+    
     results = []
+    skipped = 0
     for i, signal in enumerate(signals):
+        key = (signal['timestamp'], signal['symbol'])
+        if key in existing_results:
+            skipped += 1
+            results.append(existing_results[key])
+            print(f"跳过 [{i+1}/{len(signals)}] {signal['symbol']} (已回测)")
+            continue
+            
         print(f"回测 [{i+1}/{len(signals)}] {signal['symbol']}...", end=" ")
         
         result = backtest_signal(signal)
@@ -189,6 +225,7 @@ def main():
         
         time.sleep(0.3)
     
+    print(f"\n跳过 {skipped} 个已回测信号")
     if results:
         save_results(results)
         print_statistics(results)
