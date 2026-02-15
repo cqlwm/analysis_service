@@ -76,7 +76,7 @@ def backtest_signal(signal):
     
     take_profits = sorted(take_profits, reverse=(position_direction == 'short'))
     
-    signal_timestamp = int(signal['timestamp'])
+    signal_timestamp = signal['timestamp']
     ohlcv_data = fetch_ohlcv_since(symbol, signal_timestamp)
     
     if not ohlcv_data:
@@ -104,7 +104,7 @@ def backtest_signal(signal):
             if high >= stop_loss:
                 result['result'] = 'stop_loss'
                 result['exit_price'] = stop_loss
-                result['exit_timestamp'] = int(ts // 1000)
+                result['exit_timestamp'] = ts
                 result['pnl_pct'] = round((entry_price - stop_loss) / entry_price * 100, 2)
                 result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
                 break
@@ -113,7 +113,7 @@ def backtest_signal(signal):
                 if low <= tp:
                     result['result'] = 'take_profit'
                     result['exit_price'] = tp
-                    result['exit_timestamp'] = int(ts // 1000)
+                    result['exit_timestamp'] = ts
                     result['pnl_pct'] = round((entry_price - tp) / entry_price * 100, 2)
                     result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
                     break
@@ -125,7 +125,7 @@ def backtest_signal(signal):
             if low <= stop_loss:
                 result['result'] = 'stop_loss'
                 result['exit_price'] = stop_loss
-                result['exit_timestamp'] = int(ts // 1000)
+                result['exit_timestamp'] = ts
                 result['pnl_pct'] = round((stop_loss - entry_price) / entry_price * 100, 2)
                 result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
                 break
@@ -134,7 +134,7 @@ def backtest_signal(signal):
                 if high >= tp:
                     result['result'] = 'take_profit'
                     result['exit_price'] = tp
-                    result['exit_timestamp'] = int(ts // 1000)
+                    result['exit_timestamp'] = ts
                     result['pnl_pct'] = round((tp - entry_price) / entry_price * 100, 2)
                     result['pnl_usdt'] = round(POSITION_SIZE_USDT * result['pnl_pct'] / 100, 2)
                     break

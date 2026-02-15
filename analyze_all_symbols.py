@@ -71,7 +71,7 @@ def analyze_symbol(exchange: ccxt.Exchange, symbol: str, timeframe: str = '1h', 
 
         # 转换为DataFrame
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
 
         # 调用LLM增强策略
         result = llm_enhanced_strategy(df, total_capital=10000, enable_llm=True)
@@ -79,7 +79,7 @@ def analyze_symbol(exchange: ccxt.Exchange, symbol: str, timeframe: str = '1h', 
         return {
             'symbol': symbol,
             'status': 'success',
-            'data_range': f"{df['timestamp'].iloc[0]} ~ {df['timestamp'].iloc[-1]}",
+            'data_range': f"{df['datetime'].iloc[0]} ~ {df['datetime'].iloc[-1]}",
             'signal': result.get('signal', 'UNKNOWN'),
             'llm_analysis': result.get('llm_analysis', {}),
             'full_result': result

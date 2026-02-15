@@ -145,11 +145,11 @@ def open_page(target_url: str, run: Callable[[Page], None]):
 
         run(page)
 
-def posting(symbol: Symbol, content: str):
+def binance_posting(symbol: Symbol, content: str):
     def run(page: Page):
         focus_input_box(page)
         input_symbol(page, symbol)
-        input_text(page, content)
+        input_text(page, content.removeprefix('\n').removeprefix(symbol.clean))
         input_trade_widget(page, symbol)
         click_post(page)
     target_url = "https://www.bmwweb.academy/zh-CN/square"
@@ -184,7 +184,7 @@ def main() -> None:
             page.goto(TARGET_URL, wait_until="domcontentloaded")
             print(f"打开新标签页: {page.url}")
 
-        symbol = Symbol.parse('PIPPIN')
+        symbol = Symbol.parse('PIPPIN/USDT')
         text = '''各位专家，
         这个拿到什么位置合适出？
         '''

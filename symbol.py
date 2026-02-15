@@ -11,7 +11,7 @@ class Symbol:
     quote: str
 
     @classmethod
-    def parse(cls, s: str) -> "Symbol":
+    def parse(cls, s: "str | Symbol") -> "Symbol":
         """
         从各种格式解析 Symbol:
         - BTCUSDT -> base=BTC, quote=USDT
@@ -20,6 +20,11 @@ class Symbol:
         - BTC/USDT:USDT -> base=BTC, quote=USDT
         - BTC -> base=BTC, quote=USDT (默认)
         """
+        if type(s) is Symbol:
+            return s
+        if type(s) is not str:
+            raise TypeError("Symbol.parse param must be str or Symbol")
+
         s = s.upper().strip()
         
         if '/' in s:

@@ -13,7 +13,7 @@ import json
 
 from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, generate_indicator_prompt
 from binance_ticker_monitor import BinanceTickerMonitor
-from attach_existing_chrome import posting
+from attach_existing_chrome import binance_posting
 from symbol import Symbol
 
 dotenv.load_dotenv()
@@ -73,9 +73,7 @@ def generate_post(symbol: Symbol, timeframe: str, df: DataFrame):
 
     # 根据指标摘要生成分析报告
     messages: list[ChatCompletionMessageParam] = [
-        ChatCompletionSystemMessageParam(
-            content="你是一个专业的加密货币交易分析员, 擅长分析技术指标和市场趋势, 并根据指标生成专业的交易分析报告。",
-            role="system"),
+        ChatCompletionSystemMessageParam(content="你是一个专业的加密货币交易分析员, 擅长分析技术指标和市场趋势, 并根据指标生成专业的交易分析报告。", role="system"),
         ChatCompletionUserMessageParam(content=indicator_prompt, role="user"),
     ]
 
@@ -97,9 +95,6 @@ def generate_post(symbol: Symbol, timeframe: str, df: DataFrame):
         model=model_name,
         messages=messages,
         max_tokens=200,
-        # extra_body={
-        #     'enable_thinking': True
-        # }
     )
     final_post = response2.choices[0].message.content or ""
 
@@ -130,16 +125,14 @@ def extract_signal_json(symbol: Symbol, post_content: str) -> dict | None:
  - 如果无法提取某字段，用null表示
  """
 
-    messages: list[ChatCompletionMessageParam] = [
-        ChatCompletionSystemMessageParam(content="你是一个专业的交易信号提取助手，擅长从文本中提取结构化的交易信息。", role="system"),
-        ChatCompletionUserMessageParam(content=extract_prompt, role="user"),
-    ]
-
     try:
         from openai.types.shared_params.response_format_json_object import ResponseFormatJSONObject
         response = client.chat.completions.create(
             model=min_model_name,
-            messages=messages,
+            messages=[
+                ChatCompletionSystemMessageParam(content="你是一个专业的交易信号提取助手，擅长从文本中提取结构化的交易信息。", role="system"),
+                ChatCompletionUserMessageParam(content=extract_prompt, role="user"),
+            ],
             max_tokens=500,
             extra_body={
                 "enable_thinking": False
@@ -253,7 +246,7 @@ def main():
                     timestamp = ohlcv_df["timestamp"].iloc[-1]
                     save_signals_to_csv(signal_json, timestamp)
 
-                posting(sym.clean, post_text.replace(sym.with_prefix, sym.clean))
+                binance_posting(sym, post_text)
             except Exception as e:
                 print(e)
             finally:
