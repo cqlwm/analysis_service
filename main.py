@@ -232,7 +232,7 @@ def main():
             if sym.full in last_generation_time:
                 elapsed = current_time - last_generation_time[sym.full]
                 if elapsed < 3600:
-                    print(f"⏭️ 跳过 {sym.full} (距上次 {int(elapsed)}秒)")
+                    # print(f"⏭️ 跳过 {sym.full} (距上次 {int(elapsed)}秒)")
                     continue
             
             try:

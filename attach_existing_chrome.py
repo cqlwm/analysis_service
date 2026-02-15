@@ -96,12 +96,16 @@ def input_trade_widget(page: Page, symbol: Symbol, is_search: bool = False):
         timeout = 0 if is_search else 3000
         page.wait_for_selector(trade_widget_list_selector, timeout=timeout)
     except TimeoutError:
-        if page.locator(trade_widget_list_selector).count() == 0:
-            page.click('.trade-widget-icon.icon-box')
-            symbol_name_input_selector = '.bg-CardBg .bn-textField-input'
-            page.wait_for_selector(symbol_name_input_selector)
-            page.fill(symbol_name_input_selector, symbol.clean)
-            time.sleep(1)
+        print(f"wait_for_selector {trade_widget_list_selector} TimeoutError")
+    except Exception as e:
+        print(e)
+
+    if page.locator(trade_widget_list_selector).count() == 0:
+        page.click('.trade-widget-icon.icon-box')
+        symbol_name_input_selector = '.bg-CardBg .bn-textField-input'
+        page.wait_for_selector(symbol_name_input_selector)
+        page.fill(symbol_name_input_selector, symbol.clean)
+        time.sleep(1)
 
     target = symbol.full
     elements = page.locator(trade_widget_list_selector).all()
