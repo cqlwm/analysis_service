@@ -8,8 +8,12 @@ import dotenv
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError
+import logging
 
+from logger import setup_logger
 from symbol import Symbol
+
+logger = setup_logger('chrome')
 
 dotenv.load_dotenv()
 
@@ -34,7 +38,7 @@ def ensure_debug_chrome_running() -> None:
 
     # 调试端口可用时直接返回
     if is_cdp_ready():
-        print("端口已就绪")
+        logger.info("端口已就绪")
         return
 
     # 未开启时，后台启动一个可被 Playwright 接管的本地 Chrome 进程
@@ -77,12 +81,11 @@ def input_symbol(page: Page, symbol: Symbol):
         children = container.locator('.text-PrimaryText').all()
         for child in children:
             if child.text_content() == symbol.clean:
-                print(child.text_content())
+                logger.debug(child.text_content())
                 child.click()
                 break
     except TimeoutError:
-        # 如果没有等到该元素, 说明不存在现货symbol, 可以忽略超时
-        print(f'{symbol.clean}现货标签没找到')
+        logger.warning(f'{symbol.clean}现货标签没找到')
     finally:
         page.keyboard.type(' ')
 
@@ -96,9 +99,9 @@ def input_trade_widget(page: Page, symbol: Symbol, is_search: bool = False):
         timeout = 0 if is_search else 3000
         page.wait_for_selector(trade_widget_list_selector, timeout=timeout)
     except TimeoutError:
-        print(f"wait_for_selector {trade_widget_list_selector} TimeoutError")
+        logger.warning(f"wait_for_selector {trade_widget_list_selector} TimeoutError")
     except Exception as e:
-        print(e)
+        logger.error(e)
 
     if page.locator(trade_widget_list_selector).count() == 0:
         page.click('.trade-widget-icon.icon-box')
@@ -110,7 +113,7 @@ def input_trade_widget(page: Page, symbol: Symbol, is_search: bool = False):
     target = symbol.full
     elements = page.locator(trade_widget_list_selector).all()
     for el in elements:
-        print(el.text_content())
+        logger.debug(el.text_content())
         if el.text_content() == target:
             el.click()
             break
@@ -141,11 +144,11 @@ def open_page(target_url: str, run: Callable[[Page], None]):
 
         if target_page:
             page = target_page
-            print(f"使用已打开的标签页: {page.url}")
+            logger.info(f"使用已打开的标签页: {page.url}")
         else:
             page = context.new_page()
             page.goto(target_url, wait_until="domcontentloaded")
-            print(f"打开新标签页: {page.url}")
+            logger.info(f"打开新标签页: {page.url}")
 
         run(page)
 
@@ -182,11 +185,11 @@ def main() -> None:
 
         if target_page:
             page = target_page
-            print(f"使用已打开的标签页: {page.url}")
+            logger.info(f"使用已打开的标签页: {page.url}")
         else:
             page = context.new_page()
             page.goto(TARGET_URL, wait_until="domcontentloaded")
-            print(f"打开新标签页: {page.url}")
+            logger.info(f"打开新标签页: {page.url}")
 
         symbol = Symbol.parse('PIPPIN/USDT')
         text = '''各位专家，

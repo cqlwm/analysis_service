@@ -12,7 +12,10 @@ from typing import Dict, List, Optional, Tuple
 import websocket
 import threading
 
+from logger import setup_logger
 from symbol import Symbol
+
+logger = setup_logger('ticker_monitor')
 
 
 class BinanceTickerMonitor:
@@ -189,25 +192,25 @@ class BinanceTickerMonitor:
                     self.stats['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
         except Exception as e:
-            print(f"处理消息时出错: {e}")
+            logger.error(f"处理消息时出错: {e}")
     
     def _on_error(self, ws, error):
         """处理错误"""
-        print(f"WebSocket错误: {error}")
+        logger.error(f"WebSocket错误: {error}")
     
     def _on_close(self, ws, close_status_code, close_msg):
         """连接关闭时"""
-        print(f"WebSocket连接关闭: {close_status_code} - {close_msg}")
+        logger.warning(f"WebSocket连接关闭: {close_status_code} - {close_msg}")
         self.running = False
     
     def _on_open(self, ws):
         """连接打开时"""
-        print("WebSocket连接已建立，开始接收数据...")
+        logger.info("WebSocket连接已建立，开始接收数据...")
         self.running = True
     
     def start(self):
         """启动监控"""
-        print(f"正在连接到 {self.WS_URL}...")
+        logger.info(f"正在连接到 {self.WS_URL}...")
         
         self.ws = websocket.WebSocketApp(
             self.WS_URL,
@@ -227,15 +230,15 @@ class BinanceTickerMonitor:
         self.running = False
         if self.ws:
             self.ws.close()
-        print("监控器已停止")
+        logger.info("监控器已停止")
     
     def print_stats(self):
         """打印统计信息"""
-        print(f"\n{'='*60}")
-        print(f"监控统计 - {self.stats['last_update']}")
-        print(f"交易对数量: {self.stats['total_symbols']}")
-        print(f"高波动率交易对数量: {len(self.get_high_volatility_symbols())}")
-        print(f"{'='*60}")
+        logger.info(f"\n{'='*60}")
+        logger.info(f"监控统计 - {self.stats['last_update']}")
+        logger.info(f"交易对数量: {self.stats['total_symbols']}")
+        logger.info(f"高波动率交易对数量: {len(self.get_high_volatility_symbols())}")
+        logger.info(f"{'='*60}")
     
     def print_high_volatility(self, top_n: int = 20):
         """
@@ -247,14 +250,14 @@ class BinanceTickerMonitor:
         high_vol = self.get_high_volatility_symbols()
         
         if not high_vol:
-            print(f"\n暂无明显波动（阈值: {self.volatility_threshold}%）")
+            logger.info(f"暂无明显波动（阈值: {self.volatility_threshold}%）")
             return
         
-        print(f"\n{'='*120}")
-        print(f"高波动率交易对 (阈值: {self.volatility_threshold}%) - 共 {len(high_vol)} 个")
-        print(f"{'='*120}")
-        print(f"{'排名':<6}{'交易对':<12}{'当前价格':<15}{'最大波动':<12}{'5分钟':<10}{'15分钟':<10}{'1小时':<10}{'4小时':<10}{'24小时':<10}")
-        print(f"{'-'*120}")
+        logger.info(f"\n{'='*120}")
+        logger.info(f"高波动率交易对 (阈值: {self.volatility_threshold}%) - 共 {len(high_vol)} 个")
+        logger.info(f"{'='*120}")
+        logger.info(f"{'排名':<6}{'交易对':<12}{'当前价格':<15}{'最大波动':<12}{'5分钟':<10}{'15分钟':<10}{'1小时':<10}{'4小时':<10}{'24小时':<10}")
+        logger.info(f"{'-'*120}")
         
         for i, item in enumerate(high_vol[:top_n], 1):
             changes = item['changes']
@@ -269,9 +272,9 @@ class BinanceTickerMonitor:
                 f"{changes.get('4h') or 0:<10.2f}%"
                 f"{changes.get('24h') or 0:<10.2f}%"
             )
-            print(row)
+            logger.info(row)
         
-        print(f"{'='*120}")
+        logger.info(f"{'='*120}")
 
 
 def main():
@@ -284,7 +287,7 @@ def main():
     
     # 处理Ctrl+C
     def signal_handler(sig, frame):
-        print('\n正在停止...')
+        logger.info('正在停止...')
         monitor.stop()
         sys.exit(0)
     
@@ -294,7 +297,7 @@ def main():
     monitor.start()
     
     # 等待连接建立
-    print("等待连接...")
+    logger.info("等待连接...")
     time.sleep(3)
     
     try:

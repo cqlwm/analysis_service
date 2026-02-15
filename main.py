@@ -3,6 +3,7 @@ import dotenv
 import pandas as pd
 import openai
 import os
+import logging
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
@@ -11,10 +12,13 @@ from pandas import DataFrame
 import time
 import json
 
+from logger import setup_logger
 from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, generate_indicator_prompt
 from binance_ticker_monitor import BinanceTickerMonitor
 from attach_existing_chrome import binance_posting
 from symbol import Symbol
+
+logger = setup_logger('main')
 
 dotenv.load_dotenv()
 
@@ -145,7 +149,7 @@ def extract_signal_json(symbol: Symbol, post_content: str) -> dict | None:
             result_json["symbol"] = symbol.clean
             return result_json
     except Exception as e:
-        print(f"提取JSON信号失败: {e}")
+        logger.error(f"提取JSON信号失败: {e}")
     
     return None
 
@@ -189,7 +193,7 @@ def save_signals_to_csv(signal_json: dict, timestamp: int):
             writer.writeheader()
         writer.writerow(row)
     
-    print(f"✓ 已保存信号到CSV: {csv_file}")
+    logger.info(f"已保存信号到CSV: {csv_file}")
 
 
 def save_post(symbol: Symbol, post: str):
@@ -209,7 +213,7 @@ def save_post(symbol: Symbol, post: str):
     with open(f'data/{symbol.clean}_{timestamp}.json', 'w') as f:
         f.write(json.dumps(data, indent=4, ensure_ascii=False))
     
-    print(f"✓ 已保存: data/{symbol.clean}_{timestamp}.json")
+    logger.info(f"已保存: data/{symbol.clean}_{timestamp}.json")
 
 
 monitor = BinanceTickerMonitor(volatility_threshold=5.0)
@@ -248,7 +252,7 @@ def main():
 
                 binance_posting(sym, post_text)
             except Exception as e:
-                print(e)
+                logger.error(e)
             finally:
                 last_generation_time[sym.full] = current_time
                 save_last_generation_time(last_generation_time)
