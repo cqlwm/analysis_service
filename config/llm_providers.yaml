@@ -7,22 +7,22 @@ providers:
   ark:
     api_key: "${ARK_API_KEY}"
     base_url: "https://ark.cn-beijing.volces.com/api/v3"
-    api_type: "responses"
+    api_type: "chat"
 
 model_mapping:
   reasoner_model:
     provider: ark
-    model: "ep-20260216002712-z5fgm"
-    extra_body:
-      thinking:
-        type: "enabled"
-      caching:
-        type: "enabled"
-      expire_at: 3000
+    model: "ep-20260216152524-94x4s"
+#    extra_body:
+#      thinking:
+#        type: "enabled"
+#      caching:
+#        type: "enabled"
+#      expire_at: 3000
 
   chat_model:
     provider: ark
-    model: "ep-20260216002712-z5fgm"
+    model: "ep-20260216003214-9gssf"
     extra_body:
       thinking:
         type: "disabled"

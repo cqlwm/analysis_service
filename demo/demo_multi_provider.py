@@ -15,5 +15,5 @@ messages = [
 # print(result)
 
 if __name__ == "__main__":
-    r = llm.chat(model_type="chat_model", messages=messages)
+    r = llm.chat(model_type="reasoner_model", messages=messages)
     print(r)
