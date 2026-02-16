@@ -1,13 +1,7 @@
 import ccxt
 import dotenv
 import pandas as pd
-import openai
 import os
-import logging
-from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
-from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
-from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
-from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pandas import DataFrame
 import time
 import json
@@ -17,21 +11,13 @@ from alpha_trend_strategy import AlphaTrendStrategy, generate_flash_prompt, gene
 from binance_ticker_monitor import BinanceTickerMonitor
 from attach_existing_chrome import binance_posting
 from symbol import Symbol
+from llm import LLMManager
 
 logger = setup_logger('main')
 
 dotenv.load_dotenv()
 
-# 初始化OpenAI客户端
-api_key = os.getenv("OPENAI_API_KEY")
-base_url = os.getenv("OPENAI_API_BASE_URL", "https://api.siliconflow.cn/v1")
-model_name = os.getenv("MODEL_NAME", "deepseek-ai/DeepSeek-V3.2")
-min_model_name = os.getenv("MIN_MODEL_NAME", "Qwen/Qwen3-8B")
-
-if not api_key:
-    raise ValueError("OPENAI_API_KEY not set")
-
-client = openai.OpenAI(api_key=api_key, base_url=base_url)
+llm = LLMManager()
 
 exchange = ccxt.binance({
     'enableRateLimit': True,
@@ -75,32 +61,15 @@ def generate_post(symbol: Symbol, timeframe: str, df: DataFrame):
         summary=summary
     )
 
-    # 根据指标摘要生成分析报告
-    messages: list[ChatCompletionMessageParam] = [
-        ChatCompletionSystemMessageParam(content="你是一个专业的加密货币交易分析员, 擅长分析技术指标和市场趋势, 并根据指标生成专业的交易分析报告。", role="system"),
-        ChatCompletionUserMessageParam(content=indicator_prompt, role="user"),
+    messages = [
+        {"content": "你是一个专业的加密货币交易分析员, 擅长分析技术指标和市场趋势, 并根据指标生成专业的交易分析报告。", "role": "system"},
+        {"content": indicator_prompt, "role": "user"},
     ]
+    analysis_report = llm.chat(model_type="reasoner_model", messages=messages, max_tokens=2000)
 
-    response1 = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        max_tokens=2000,
-        extra_body={
-            'enable_thinking': True
-        }
-    )
-    analysis_result = response1.choices[0].message.content or ""
-
-    # 根据报告生成帖文
-    messages.append(ChatCompletionAssistantMessageParam(content=analysis_result, role="assistant"))
-    messages.append(ChatCompletionUserMessageParam(content=generate_flash_prompt(), role="user"))
-
-    response2 = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        max_tokens=200,
-    )
-    final_post = response2.choices[0].message.content or ""
+    messages.append({"content": analysis_report, "role": "assistant"})
+    messages.append({"content": generate_flash_prompt(), "role": "user"})
+    final_post = llm.chat(model_type="chat_model", messages=messages, max_tokens=200)
 
     return final_post
 
@@ -109,41 +78,37 @@ def extract_signal_json(symbol: Symbol, post_content: str) -> dict | None:
     """从生成的post中提取交易信号JSON"""
 
     extract_prompt = f"""从以下交易信号文章中提取关键交易信息，输出纯JSON格式，不要包含任何其他内容。
-
- 文章内容：
- {post_content}
-
- 请提取以下格式的JSON：
- {{
-     "symbol": "{symbol.clean}",
-     "position_direction": "short" 或 "long",
-     "entry_price": [最小入场价, 最大入场价],
-     "stop_loss_price": 止损价,
-     "take_profit_price": [止盈价1, 止盈价2, 止盈价3]
- }}
-
- 注意：
- - entry_price 是一个数组，表示入场价格区间
- - take_profit_price 是一个数组，最多3个止盈位
- - position_direction: 做空用"short"，做多用"long"
- - 如果无法提取某字段，用null表示
- """
+    
+     文章内容：
+     {post_content}
+    
+     请提取以下格式的JSON：
+     {{
+         "symbol": "{symbol.clean}",
+         "position_direction": "short" 或 "long",
+         "entry_price": [最小入场价, 最大入场价],
+         "stop_loss_price": 止损价,
+         "take_profit_price": [止盈价1, 止盈价2, 止盈价3]
+     }}
+    
+     注意：
+     - entry_price 是一个数组，表示入场价格区间
+     - take_profit_price 是一个数组，最多3个止盈位
+     - position_direction: 做空用"short"，做多用"long"
+     - 如果无法提取某字段，用null表示
+     """
 
     try:
         from openai.types.shared_params.response_format_json_object import ResponseFormatJSONObject
-        response = client.chat.completions.create(
-            model=min_model_name,
+        result = llm.chat(
+            model_type="mini_model",
             messages=[
-                ChatCompletionSystemMessageParam(content="你是一个专业的交易信号提取助手，擅长从文本中提取结构化的交易信息。", role="system"),
-                ChatCompletionUserMessageParam(content=extract_prompt, role="user"),
+                {"content": "你是一个专业的交易信号提取助手，擅长从文本中提取结构化的交易信息。", "role": "system"},
+                {"content": extract_prompt, "role": "user"},
             ],
             max_tokens=500,
-            extra_body={
-                "enable_thinking": False
-            },
             response_format=ResponseFormatJSONObject(type="json_object")
         )
-        result = response.choices[0].message.content or ""
         if len(result) > 2 and result[0] == "{" and result[-1] == "}":
             result_json = json.loads(result)
             result_json["symbol"] = symbol.clean

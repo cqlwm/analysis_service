@@ -1,0 +1,36 @@
+providers:
+  siliconflow:
+    api_key: "${SILICONFLOW_API_KEY}"
+    base_url: "https://api.siliconflow.cn/v1"
+    api_type: "chat"
+
+  ark:
+    api_key: "${ARK_API_KEY}"
+    base_url: "https://ark.cn-beijing.volces.com/api/v3"
+    api_type: "responses"
+
+model_mapping:
+  reasoner_model:
+    provider: ark
+    model: "ep-20260216002712-z5fgm"
+    extra_body:
+      thinking:
+        type: "enabled"
+      caching:
+        type: "enabled"
+      expire_at: 3000
+
+  chat_model:
+    provider: ark
+    model: "ep-20260216002712-z5fgm"
+    extra_body:
+      thinking:
+        type: "enabled"
+      caching:
+        type: "enabled"
+      expire_at: 3000
+
+  mini_model:
+    provider: ark
+    model: "ep-20260216003214-9gssf"
+    extra_body: {}

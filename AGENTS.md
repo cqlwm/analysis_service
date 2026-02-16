@@ -1,0 +1,1 @@
+运行python代码时需要启动虚拟环境 `source .venv/bin/activate`
