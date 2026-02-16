@@ -25,10 +25,9 @@ model_mapping:
     model: "ep-20260216002712-z5fgm"
     extra_body:
       thinking:
-        type: "enabled"
+        type: "disabled"
       caching:
-        type: "enabled"
-      expire_at: 3000
+        type: "disabled"
 
   mini_model:
     provider: ark
