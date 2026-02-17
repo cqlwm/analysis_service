@@ -7,29 +7,25 @@ providers:
   ark:
     api_key: "${ARK_API_KEY}"
     base_url: "https://ark.cn-beijing.volces.com/api/v3"
-    api_type: "chat"
+    api_type: "responses"
 
 model_mapping:
   reasoner_model:
     provider: ark
-    model: "ep-20260216152524-94x4s"
-#    extra_body:
-#      thinking:
-#        type: "enabled"
-#      caching:
-#        type: "enabled"
-#      expire_at: 3000
+    model: "glm-4-7-251222"
+    extra_body:
+      thinking:
+        type: "enabled"
 
   chat_model:
     provider: ark
-    model: "ep-20260216003214-9gssf"
+    model: "glm-4-7-251222"
     extra_body:
       thinking:
         type: "disabled"
-      caching:
-        type: "disabled"
 
   mini_model:
-    provider: ark
-    model: "ep-20260216003214-9gssf"
-    extra_body: {}
+    provider: siliconflow
+    model: "Qwen/Qwen3-8B"
+    extra_body:
+      enable_thinking: false

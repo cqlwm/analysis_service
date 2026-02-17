@@ -89,6 +89,7 @@ class BaseLLMClient:
             extra_body=extra_body or {},
             **kwargs
         )
+        # reasoning = response.output[0].summary[0].text
         return response.output_text or ""
 
 

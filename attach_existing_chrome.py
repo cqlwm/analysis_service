@@ -8,7 +8,6 @@ import dotenv
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError
-import logging
 
 from logger import setup_logger
 from symbol import Symbol

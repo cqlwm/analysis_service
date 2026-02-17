@@ -843,8 +843,9 @@ def generate_indicator_prompt(symbol: str, timeframe: str, data_range: str, summ
 def generate_flash_prompt():
     return '''
 基于上述指标信息和行情分析报告编写一则交易信号快讯。
-注意：使用纯文本而非markdown格式。
-
+注意：
+- 使用纯文本而非markdown格式。
+- 字数尽量控制在200字以内
 
 示例1：
 ZIL 正在被买回，买家似乎在试图重新获得控制权。

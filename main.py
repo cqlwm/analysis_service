@@ -65,11 +65,11 @@ def generate_post(symbol: Symbol, timeframe: str, df: DataFrame):
         {"content": "你是一个专业的加密货币交易分析员, 擅长分析技术指标和市场趋势, 并根据指标生成专业的交易分析报告。", "role": "system"},
         {"content": indicator_prompt, "role": "user"},
     ]
-    analysis_report = llm.chat(model_type="reasoner_model", messages=messages, max_tokens=2000)
+    analysis_report = llm.chat(model_type="reasoner_model", messages=messages, max_tokens=128 * 1000)
 
     messages.append({"content": analysis_report, "role": "assistant"})
     messages.append({"content": generate_flash_prompt(), "role": "user"})
-    final_post = llm.chat(model_type="chat_model", messages=messages, max_tokens=200)
+    final_post = llm.chat(model_type="chat_model", messages=messages, max_tokens=500)
 
     return final_post
 
@@ -106,7 +106,6 @@ def extract_signal_json(symbol: Symbol, post_content: str) -> dict | None:
                 {"content": "你是一个专业的交易信号提取助手，擅长从文本中提取结构化的交易信息。", "role": "system"},
                 {"content": extract_prompt, "role": "user"},
             ],
-            max_tokens=500,
             response_format=ResponseFormatJSONObject(type="json_object")
         )
         if len(result) > 2 and result[0] == "{" and result[-1] == "}":
