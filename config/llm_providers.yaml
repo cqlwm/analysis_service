@@ -12,14 +12,14 @@ providers:
 model_mapping:
   reasoner_model:
     provider: ark
-    model: "glm-4-7-251222"
+    model: "ep-20260216002712-z5fgm"
     extra_body:
       thinking:
         type: "enabled"
 
   chat_model:
     provider: ark
-    model: "glm-4-7-251222"
+    model: "ep-20260216002712-z5fgm"
     extra_body:
       thinking:
         type: "disabled"
