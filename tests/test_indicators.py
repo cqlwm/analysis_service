@@ -99,7 +99,7 @@ class TestRSIIndicator:
         
         assert summary['name'] == 'rsi'
         assert 'rsi' in summary['values']
-        assert 'summary' in summary
+        assert 'signal' in summary  # 验证signal字段存在
 
 
 class TestMACDIndicator:

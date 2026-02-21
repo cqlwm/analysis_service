@@ -14,7 +14,7 @@ class MAIndicator(BaseIndicator):
     periods = [20, 50, 200]
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        close = df['close'].values.astype(np.float64)
+        close = np.asarray(df['close'].values, dtype=np.float64)
         for period in self.periods:
             df[f'ma{period}'] = ta.SMA(close, timeperiod=period)
         return df
@@ -66,7 +66,6 @@ class MAIndicator(BaseIndicator):
                 "strength": None,
                 "description": f"{desc}，{price_vs_ma}",
             },
-            "summary": f"MA20={ma_values.get('ma20', 'N/A'):.4f} MA50={ma_values.get('ma50', 'N/A'):.4f} MA200={ma_values.get('ma200', 'N/A'):.4f}，{desc}",
         }
     
     def get_column_names(self) -> list[str]:

@@ -14,9 +14,9 @@ class ATRIndicator(BaseIndicator):
     period = 14
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        high = df['high'].values.astype(np.float64)
-        low = df['low'].values.astype(np.float64)
-        close = df['close'].values.astype(np.float64)
+        high = np.asarray(df['high'].values, dtype=np.float64)
+        low = np.asarray(df['low'].values, dtype=np.float64)
+        close = np.asarray(df['close'].values, dtype=np.float64)
         df['atr'] = ta.ATR(high, low, close, timeperiod=self.period)
         return df
     
@@ -48,7 +48,6 @@ class ATRIndicator(BaseIndicator):
                 "strength": None,
                 "description": f"ATR={atr:.4f} ({atr_pct:.2f}%)，{volatility}",
             },
-            "summary": f"ATR({self.period})={atr:.4f}，{volatility}，适合设置{3*atr:.4f}为止盈幅度",
         }
     
     def get_column_names(self) -> list[str]:

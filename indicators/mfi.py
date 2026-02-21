@@ -16,10 +16,10 @@ class MFIIndicator(BaseIndicator):
     oversold = 20
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        high = df['high'].values.astype(np.float64)
-        low = df['low'].values.astype(np.float64)
-        close = df['close'].values.astype(np.float64)
-        volume = df['volume'].values.astype(np.float64)
+        high = np.asarray(df['high'].values, dtype=np.float64)
+        low = np.asarray(df['low'].values, dtype=np.float64)
+        close = np.asarray(df['close'].values, dtype=np.float64)
+        volume = np.asarray(df['volume'].values, dtype=np.float64)
         df['mfi'] = ta.MFI(high, low, close, volume, timeperiod=self.period)
         return df
     
@@ -54,7 +54,6 @@ class MFIIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"MFI({self.period})={mfi:.2f}，{desc}",
         }
     
     def get_column_names(self) -> list[str]:

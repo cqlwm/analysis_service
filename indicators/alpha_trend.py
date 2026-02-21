@@ -126,12 +126,8 @@ class AlphaTrendIndicator(BaseIndicator):
             direction = SignalDirection.LONG if signal_val == 1 else SignalDirection.SHORT
         else:
             direction = SignalDirection.NEUTRAL
-        
-        # 价格与Alpha Trend关系
-        if close > alpha_trend:
-            price_vs_at = f"价格在Alpha Trend上方({(close - alpha_trend) / close * 100:.2f}%)"
-        else:
-            price_vs_at = f"价格在Alpha Trend下方({(alpha_trend - close) / close * 100:.2f}%)"
+
+        price_vs_at = (close - alpha_trend) / close * 100
         
         # 获取最近的有效信号
         signal_series = df[_TREND_SHIFT2_CROSS]
@@ -165,7 +161,6 @@ class AlphaTrendIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"Alpha Trend={alpha_trend:.4f}，{desc}，信号后{kline_count_since_signal}根K线",
         }
     
     def get_column_names(self) -> list[str]:

@@ -15,7 +15,7 @@ class BollingerBandsIndicator(BaseIndicator):
     std_dev = 2
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        close = df['close'].values.astype(np.float64)
+        close = np.asarray(df['close'].values, dtype=np.float64)
         upper, middle, lower = ta.BBANDS(
             close,
             timeperiod=self.period,
@@ -69,7 +69,6 @@ class BollingerBandsIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"BB({self.period})=上:{bb_upper:.4f} 中:{bb_middle:.4f} 下:{bb_lower:.4f}，{desc}",
         }
     
     def get_column_names(self) -> list[str]:

@@ -14,7 +14,7 @@ class VolumeIndicator(BaseIndicator):
     ma_period = 20
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        volume = df['volume'].values.astype(np.float64)
+        volume = np.asarray(df['volume'].values, dtype=np.float64)
         df['volume_ma'] = ta.SMA(volume, timeperiod=self.ma_period)
         df['volume_ratio'] = volume / df['volume_ma']
         return df
@@ -52,7 +52,6 @@ class VolumeIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"成交量={volume:.0f} MA{self.ma_period}={volume_ma:.0f} 比率={volume_ratio:.2f}x，{desc}",
         }
     
     def get_column_names(self) -> list[str]:

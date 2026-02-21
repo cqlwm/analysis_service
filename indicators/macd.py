@@ -16,7 +16,7 @@ class MACDIndicator(BaseIndicator):
     signal_period = 9
     
     def calculate(self, df: DataFrame) -> DataFrame:
-        close = df['close'].values.astype(np.float64)
+        close = np.asarray(df['close'].values, dtype=np.float64)
         macd, signal, hist = ta.MACD(
             close,
             fastperiod=self.fast_period,
@@ -64,7 +64,6 @@ class MACDIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"MACD=({macd:.4f},{macd_signal:.4f},{macd_hist:.4f})，{desc}",
         }
     
     def get_column_names(self) -> list[str]:

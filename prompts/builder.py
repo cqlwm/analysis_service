@@ -2,6 +2,7 @@
 from pandas import DataFrame
 
 from strategies import CompositeStrategy, StrategySummary
+from interpreters import InterpreterRegistry
 
 
 class PromptBuilder:
@@ -10,6 +11,7 @@ class PromptBuilder:
     
     设计原则:
     - 指标计算与prompt构建解耦
+    - 解释器独立，将结构化数据转换为自然语言
     - 支持自定义模板
     - 生成结构化的prompt便于LLM理解
     """
@@ -59,7 +61,7 @@ class PromptBuilder:
 
 ---"""
         
-        # 技术指标部分
+        # 技术指标部分（使用解释器生成自然语言）
         indicators_section = self._format_indicators(summary['indicators'])
         
         # 底部任务说明
@@ -77,7 +79,7 @@ class PromptBuilder:
         return header + indicators_section + footer
     
     def _format_indicators(self, indicators: list[dict]) -> str:
-        """格式化指标为表格"""
+        """格式化指标为表格（使用解释器生成自然语言）"""
         if not indicators:
             return "\n暂无指标数据\n"
         
@@ -87,10 +89,33 @@ class PromptBuilder:
             display_name = ind.get('display_name', ind['name'])
             values = ind['values']
             signal = ind.get('signal')
+            indicator_name = ind['name']
             
-            # 指标名称和摘要
+            # 使用解释器生成自然语言描述
+            interpreter = InterpreterRegistry.get(indicator_name)
+            if interpreter:
+                interpreted = interpreter.interpret(values, signal)
+                summary = interpreted['summary']
+                analysis = interpreted['analysis']
+            else:
+                # 使用默认解释器
+                default_interpreter = InterpreterRegistry.get('_default')
+                if default_interpreter:
+                    interpreted = default_interpreter.interpret(values, signal)
+                    summary = interpreted['summary']
+                    analysis = interpreted['analysis']
+                else:
+                    summary = "无数据"
+                    analysis = "无分析"
+            
+            # 指标名称
             lines.append(f"### {display_name}")
-            lines.append(f"- {ind['summary']}")
+            
+            # 解释器生成的摘要
+            lines.append(f"- {summary}")
+            
+            # 解释器生成的分析
+            lines.append(f"- {analysis}")
             
             # 信号方向
             if signal and signal.get('direction'):

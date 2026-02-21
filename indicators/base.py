@@ -18,12 +18,11 @@ class IndicatorSignal(TypedDict):
 
 
 class IndicatorOutput(TypedDict):
-    """指标完整输出"""
+    """指标完整输出 - 仅包含结构化数据，不包含自然语言描述"""
     name: str
     display_name: str
     values: dict[str, float]
     signal: IndicatorSignal | None
-    summary: str
 
 
 class BaseIndicator(ABC):

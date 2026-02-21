@@ -49,7 +49,6 @@ class RSIIndicator(BaseIndicator):
                 "strength": None,
                 "description": desc,
             },
-            "summary": f"RSI({self.period})={rsi:.2f}，{desc}",
         }
     
     def get_column_names(self) -> list[str]:
