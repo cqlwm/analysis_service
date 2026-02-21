@@ -13,6 +13,10 @@ from attach_existing_chrome import binance_posting
 from symbol import Symbol
 from llm import LLMManager
 
+# 新架构模块
+from strategies import CompositeStrategy
+from prompts import PromptBuilder
+
 logger = setup_logger('main')
 
 dotenv.load_dotenv()

@@ -190,15 +190,15 @@ def main() -> None:
             page.goto(TARGET_URL, wait_until="domcontentloaded")
             logger.info(f"打开新标签页: {page.url}")
 
-        symbol = Symbol.parse('PIPPIN/USDT')
-        text = '''各位专家，
-        这个拿到什么位置合适出？
-        '''
+        # symbol = Symbol.parse('PIPPIN/USDT')
+        # text = '''各位专家，
+        # 这个拿到什么位置合适出？
+        # '''
 
-        page.click('div.json-article-editor')
-        input_symbol(page, symbol)
-        input_text(page, text)
-        input_trade_widget(page, symbol)
+        # page.click('div.json-article-editor')
+        # input_symbol(page, symbol)
+        # input_text(page, text)
+        # input_trade_widget(page, symbol)
         # click_post(page)
         # browser.close()
 
