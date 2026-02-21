@@ -2,8 +2,33 @@
 import talib as ta
 import numpy as np
 from pandas import DataFrame
+from dataclasses import dataclass
 
-from indicators.base import BaseIndicator, IndicatorOutput, SignalDirection
+from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
+
+
+@dataclass
+class MFIOutput:
+    """MFI 指标输出"""
+    name: str
+    display_name: str
+    
+    mfi: float
+    period: int
+    overbought: float
+    oversold: float
+    zone: str
+    flow_direction: str
+    
+    signal: IndicatorSignal
+    
+    @property
+    def direction(self) -> str | None:
+        return self.signal["direction"]
+    
+    @property
+    def description(self) -> str | None:
+        return self.signal["description"]
 
 
 class MFIIndicator(BaseIndicator):
@@ -23,38 +48,46 @@ class MFIIndicator(BaseIndicator):
         df['mfi'] = ta.MFI(high, low, close, volume, timeperiod=self.period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutput:
+    def summarize(self, df: DataFrame, latest_idx: int = -1) -> MFIOutput:
         current = df.iloc[latest_idx]
         mfi = float(current['mfi'])
         
         if mfi > self.overbought:
             direction = SignalDirection.SHORT
+            zone = "overbought"
+            flow_direction = "inflow_slowing"
             desc = f"超买区域({mfi:.2f})，资金流入可能放缓"
         elif mfi < self.oversold:
             direction = SignalDirection.LONG
+            zone = "oversold"
+            flow_direction = "outflow_reversing"
             desc = f"超卖区域({mfi:.2f})，资金流出可能反转"
         elif mfi >= 50:
             direction = SignalDirection.LONG
+            zone = "net_inflow"
+            flow_direction = "inflow"
             desc = f"资金净流入({mfi:.2f})，多头占优"
         else:
             direction = SignalDirection.SHORT
+            zone = "net_outflow"
+            flow_direction = "outflow"
             desc = f"资金净流出({mfi:.2f})，空头占优"
         
-        return {
-            "name": self.name,
-            "display_name": self.display_name,
-            "values": {
-                "mfi": round(mfi, 2),
-                "period": self.period,
-                "overbought": self.overbought,
-                "oversold": self.oversold,
-            },
-            "signal": {
+        return MFIOutput(
+            name=self.name,
+            display_name=self.display_name,
+            mfi=round(mfi, 2),
+            period=self.period,
+            overbought=self.overbought,
+            oversold=self.oversold,
+            zone=zone,
+            flow_direction=flow_direction,
+            signal={
                 "direction": direction,
                 "strength": None,
                 "description": desc,
             },
-        }
+        )
     
     def get_column_names(self) -> list[str]:
         return ['mfi']

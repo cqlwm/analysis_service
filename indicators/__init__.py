@@ -1,16 +1,31 @@
 """指标模块 - 插件化技术指标系统"""
-from indicators.base import BaseIndicator, IndicatorOutput, SignalDirection
+from indicators.base import BaseIndicator, IndicatorOutputProtocol, SignalDirection
 from indicators.registry import IndicatorRegistry
 
-# 导出常用类
+from indicators.alpha_trend import AlphaTrendOutput
+from indicators.rsi import RSIOutput
+from indicators.macd import MACDOutput
+from indicators.bollinger import BollingerOutput
+from indicators.volume import VolumeOutput
+from indicators.atr import ATROutput
+from indicators.moving_average import MAOutput
+from indicators.mfi import MFIOutput
+
 __all__ = [
     'BaseIndicator',
-    'IndicatorOutput', 
+    'IndicatorOutputProtocol', 
     'SignalDirection',
     'IndicatorRegistry',
+    'AlphaTrendOutput',
+    'RSIOutput',
+    'MACDOutput',
+    'BollingerOutput',
+    'VolumeOutput',
+    'ATROutput',
+    'MAOutput',
+    'MFIOutput',
 ]
 
-# 自动初始化所有指标（延迟导入避免循环依赖）
 def _init_indicators():
     from indicators.rsi import RSIIndicator
     from indicators.macd import MACDIndicator
@@ -21,7 +36,6 @@ def _init_indicators():
     from indicators.mfi import MFIIndicator
     from indicators.alpha_trend import AlphaTrendIndicator
     
-    # 注册所有指标
     IndicatorRegistry.register(RSIIndicator())
     IndicatorRegistry.register(MACDIndicator())
     IndicatorRegistry.register(BollingerBandsIndicator())
@@ -32,5 +46,4 @@ def _init_indicators():
     IndicatorRegistry.register(AlphaTrendIndicator())
 
 
-# 按需初始化
 _init_indicators()

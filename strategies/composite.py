@@ -2,12 +2,12 @@
 from pandas import DataFrame
 from typing import TypedDict
 
-from indicators import IndicatorRegistry, IndicatorOutput
+from indicators import IndicatorRegistry, IndicatorOutputProtocol
 
 
 class StrategySummary(TypedDict):
     """策略汇总输出"""
-    indicators: list[IndicatorOutput]
+    indicators: list[IndicatorOutputProtocol]
     latest_price: float
     latest_time: str
 

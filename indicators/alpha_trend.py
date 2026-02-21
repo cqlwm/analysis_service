@@ -2,10 +2,10 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from typing import TypedDict
+from dataclasses import dataclass
 import talib as ta
 
-from indicators.base import BaseIndicator, IndicatorOutput, SignalDirection
+from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
 
 
 # 常量定义
@@ -20,6 +20,39 @@ _MFI = 'mfi'
 _ALPHA_TREND = 'alpha_trend'
 _TREND_SHIFT2_CROSS = 'alpha_trend_shift2_cross_signal'
 _TREND_CLOSE_CROSS = 'alpha_trend_close_cross_signal'
+
+
+@dataclass
+class AlphaTrendOutput:
+    """Alpha Trend 指标输出"""
+    name: str
+    display_name: str
+    
+    at_value: float
+    at_mode: str
+    at_change_pct: float | None
+    
+    price_above_at: bool
+    deviation_pct: float
+    support_tests: int
+    
+    entry_direction: str
+    bars_since_entry: int | None
+    entry_price: float | None
+    entry_deviation_pct: float | None
+    
+    exit_warning: bool
+    bars_since_exit: int | None
+    
+    signal: IndicatorSignal
+    
+    @property
+    def direction(self) -> str | None:
+        return self.signal["direction"]
+    
+    @property
+    def description(self) -> str | None:
+        return self.signal["description"]
 
 
 class AlphaTrendIndicator(BaseIndicator):
@@ -114,54 +147,117 @@ class AlphaTrendIndicator(BaseIndicator):
         
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutput:
+    def summarize(self, df: DataFrame, latest_idx: int = -1) -> AlphaTrendOutput:
         current = df.iloc[latest_idx]
         
-        alpha_trend = float(current[_ALPHA_TREND])
+        at_val = float(current[_ALPHA_TREND])
         close = float(current[_CLOSE])
-        signal_val = current[_TREND_SHIFT2_CROSS]
         
-        # 判断信号方向
-        if pd.notna(signal_val):
-            direction = SignalDirection.LONG if signal_val == 1 else SignalDirection.SHORT
+        idx = latest_idx if latest_idx >= 0 else len(df) + latest_idx
+        
+        lookback = min(5, idx)
+        at_series = df[_ALPHA_TREND]
+        at_recent = at_series.iloc[idx - lookback: idx + 1].dropna()
+        
+        if len(at_recent) >= 2:
+            at_start = float(at_recent.iloc[0])
+            at_end = float(at_recent.iloc[-1])
+            at_change_pct = round((at_end - at_start) / at_start * 100, 5)
+            if abs(at_change_pct) < 0.005:
+                at_mode = "flat"
+            elif at_change_pct > 0:
+                at_mode = "rising"
+            else:
+                at_mode = "falling"
         else:
-            direction = SignalDirection.NEUTRAL
-
-        price_vs_at = (close - alpha_trend) / close * 100
+            at_change_pct = None
+            at_mode = "unknown"
         
-        # 获取最近的有效信号
-        signal_series = df[_TREND_SHIFT2_CROSS]
-        valid_signals = signal_series.dropna()
+        price_above_at = close > at_val
+        deviation_pct = round((close - at_val) / at_val * 100, 4)
         
-        if len(valid_signals) > 0:
-            last_signal_idx = int(valid_signals.last_valid_index())
-            kline_count_since_signal = len(df) - last_signal_idx
-            signal_price = float(df.iloc[last_signal_idx][_CLOSE])
-            deviation = (close - signal_price) / signal_price * 100
+        entry_series = df[_TREND_SHIFT2_CROSS].iloc[:idx + 1]
+        valid_entry = entry_series.dropna()
+        
+        if len(valid_entry) > 0:
+            entry_idx = int(valid_entry.index[-1])
+            entry_dir = "long" if int(valid_entry.iloc[-1]) == 1 else "short"
+            bars_since_entry = idx - entry_idx
+            entry_price = round(float(df.iloc[entry_idx][_CLOSE]), 6)
+            entry_deviation_pct = round((close - entry_price) / entry_price * 100, 4)
         else:
-            kline_count_since_signal = 0
-            signal_price = close
-            deviation = 0
+            entry_dir = "none"
+            bars_since_entry = None
+            entry_price = None
+            entry_deviation_pct = None
         
-        desc = f"{price_vs_at}，{'多头' if direction == SignalDirection.LONG else '空头' if direction == SignalDirection.SHORT else '中性'}信号"
+        exit_series = df[_TREND_CLOSE_CROSS].iloc[:idx + 1]
+        valid_exit = exit_series.dropna()
         
-        return {
-            "name": self.name,
-            "display_name": self.display_name,
-            "values": {
-                "alpha_trend": round(alpha_trend, 6),
-                "atr": round(float(current[_ATR]), 6),
-                "mfi": round(float(current[_MFI]), 2),
-                "signal": int(signal_val) if pd.notna(signal_val) else 0,
-                "kline_count_since_signal": kline_count_since_signal,
-                "price_deviation_from_signal": round(deviation, 2),
-            },
-            "signal": {
-                "direction": direction,
+        exit_warning = False
+        bars_since_exit = None
+        
+        if len(valid_exit) > 0 and entry_dir != "none" and len(valid_entry) > 0:
+            last_exit_val = int(valid_exit.iloc[-1])
+            last_exit_idx = int(valid_exit.index[-1])
+            last_exit_dir = "long" if last_exit_val == 1 else "short"
+            
+            if last_exit_idx > entry_idx:
+                exit_warning = (last_exit_dir != entry_dir)
+                bars_since_exit = idx - last_exit_idx
+        
+        test_window = 20
+        start_i = max(0, idx - test_window + 1)
+        test_df = df.iloc[start_i: idx + 1]
+        
+        if price_above_at:
+            touched = (
+                (test_df[_LOW] <= test_df[_ALPHA_TREND] * 1.002) &
+                (test_df[_CLOSE] > test_df[_ALPHA_TREND])
+            ).sum()
+        else:
+            touched = (
+                (test_df[_HIGH] >= test_df[_ALPHA_TREND] * 0.998) &
+                (test_df[_CLOSE] < test_df[_ALPHA_TREND])
+            ).sum()
+        
+        if entry_dir == "long" and at_mode == "rising" and price_above_at:
+            overall = "long"
+        elif entry_dir == "short" and at_mode == "falling" and not price_above_at:
+            overall = "short"
+        elif at_mode == "flat":
+            overall = "neutral"
+        else:
+            overall = "weak"
+        
+        desc = (
+            f"AT {at_mode}，入场方向 {entry_dir}，"
+            f"持续 {bars_since_entry} 根K线，"
+            f"偏离入场价 {entry_deviation_pct}%，"
+            f"{'退出预警激活' if exit_warning else '无退出预警'}"
+        )
+        
+        return AlphaTrendOutput(
+            name=self.name,
+            display_name=self.display_name,
+            at_value=round(at_val, 6),
+            at_mode=at_mode,
+            at_change_pct=at_change_pct,
+            price_above_at=price_above_at,
+            deviation_pct=deviation_pct,
+            support_tests=int(touched),
+            entry_direction=entry_dir,
+            bars_since_entry=bars_since_entry,
+            entry_price=entry_price,
+            entry_deviation_pct=entry_deviation_pct,
+            exit_warning=exit_warning,
+            bars_since_exit=bars_since_exit,
+            signal={
+                "direction": overall,
                 "strength": None,
                 "description": desc,
             },
-        }
+        )
     
     def get_column_names(self) -> list[str]:
         return [_ATR, _ATR_BASE_LOW, _ATR_BASE_HIGH, _MFI, _ALPHA_TREND, 

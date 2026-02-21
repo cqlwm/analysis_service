@@ -97,9 +97,9 @@ class TestRSIIndicator:
         df = indicator.calculate(sample_ohlcv_data)
         summary = indicator.summarize(df)
         
-        assert summary['name'] == 'rsi'
-        assert 'rsi' in summary['values']
-        assert 'signal' in summary  # 验证signal字段存在
+        assert summary.name == 'rsi'
+        assert summary.rsi is not None
+        assert summary.signal is not None
 
 
 class TestMACDIndicator:
@@ -124,8 +124,8 @@ class TestMACDIndicator:
         df = indicator.calculate(sample_ohlcv_data)
         summary = indicator.summarize(df)
         
-        assert summary['name'] == 'macd'
-        assert 'macd' in summary['values']
+        assert summary.name == 'macd'
+        assert summary.macd is not None
 
 
 class TestBollingerBandsIndicator:
@@ -233,5 +233,5 @@ class TestAlphaTrendIndicator:
         df = indicator.calculate(sample_ohlcv_data)
         summary = indicator.summarize(df)
         
-        assert summary['name'] == 'alpha_trend'
-        assert 'alpha_trend' in summary['values']
+        assert summary.name == 'alpha_trend'
+        assert summary.at_value is not None

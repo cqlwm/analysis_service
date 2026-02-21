@@ -78,7 +78,7 @@ class PromptBuilder:
 """
         return header + indicators_section + footer
     
-    def _format_indicators(self, indicators: list[dict]) -> str:
+    def _format_indicators(self, indicators: list) -> str:
         """格式化指标为表格（使用解释器生成自然语言）"""
         if not indicators:
             return "\n暂无指标数据\n"
@@ -86,15 +86,32 @@ class PromptBuilder:
         lines = ["\n## 📊 技术指标分析\n"]
         
         for ind in indicators:
-            display_name = ind.get('display_name', ind['name'])
-            values = ind['values']
-            signal = ind.get('signal')
-            indicator_name = ind['name']
+            # 支持 dataclass 和 dict 两种格式
+            if hasattr(ind, 'display_name'):
+                display_name = ind.display_name
+                indicator_name = ind.name
+                signal = ind.signal
+                # 提取所有数值属性用于显示
+                values = {}
+                for attr in dir(ind):
+                    if not attr.startswith('_') and not callable(getattr(ind, attr)):
+                        val = getattr(ind, attr)
+                        if isinstance(val, (int, float, str, bool)) or val is None:
+                            values[attr] = val
+            else:
+                display_name = ind.get('display_name', ind['name'])
+                indicator_name = ind['name']
+                signal = ind.get('signal')
+                values = ind.get('values', {})
             
             # 使用解释器生成自然语言描述
             interpreter = InterpreterRegistry.get(indicator_name)
             if interpreter:
-                interpreted = interpreter.interpret(values, signal)
+                # 只有 AlphaTrend 有专门的 Output 类，其他指标传递字典
+                if hasattr(ind, 'display_name') and indicator_name == 'alpha_trend':
+                    interpreted = interpreter.interpret(ind, signal)
+                else:
+                    interpreted = interpreter.interpret(values, signal)
                 summary = interpreted['summary']
                 analysis = interpreted['analysis']
             else:
@@ -118,8 +135,14 @@ class PromptBuilder:
             lines.append(f"- {analysis}")
             
             # 信号方向
-            if signal and signal.get('direction'):
-                lines.append(f"- **信号方向**: {signal['direction']}")
+            signal_direction = None
+            if signal:
+                if isinstance(signal, dict):
+                    signal_direction = signal.get('direction')
+                elif hasattr(signal, 'direction'):
+                    signal_direction = signal.direction
+            if signal_direction:
+                lines.append(f"- **信号方向**: {signal_direction}")
             
             # 关键值表格
             if values:

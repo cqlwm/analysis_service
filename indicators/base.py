@@ -1,28 +1,28 @@
 """指标模块基类定义"""
 from abc import ABC, abstractmethod
 from pandas import DataFrame
-from typing import TypedDict
-
-
-class IndicatorValue(TypedDict):
-    """指标单值输出"""
-    key: str
-    value: float
+from typing import TypedDict, Protocol, runtime_checkable
 
 
 class IndicatorSignal(TypedDict):
     """指标信号"""
-    direction: str | None  # "long", "short", None
+    direction: str | None  # "long", "short", "neutral", None
     strength: float | None  # 0-100
     description: str
 
 
-class IndicatorOutput(TypedDict):
-    """指标完整输出 - 仅包含结构化数据，不包含自然语言描述"""
-    name: str
-    display_name: str
-    values: dict[str, float]
-    signal: IndicatorSignal | None
+@runtime_checkable
+class IndicatorOutputProtocol(Protocol):
+    """指标输出协议 - 所有 Output 类必须实现此接口"""
+    
+    @property
+    def name(self) -> str: ...
+    
+    @property
+    def display_name(self) -> str: ...
+    
+    @property
+    def signal(self) -> IndicatorSignal: ...
 
 
 class BaseIndicator(ABC):
@@ -45,7 +45,7 @@ class BaseIndicator(ABC):
         pass
     
     @abstractmethod
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutput:
+    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutputProtocol:
         """
         提取指标摘要
         

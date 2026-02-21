@@ -1,9 +1,33 @@
-"""移动平均线指标实现"""
+"""移动平均线指标"""
 import talib as ta
 import numpy as np
 from pandas import DataFrame
+from dataclasses import dataclass, field
 
-from indicators.base import BaseIndicator, IndicatorOutput, SignalDirection
+from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
+
+
+@dataclass
+class MAOutput:
+    """移动平均线指标输出"""
+    name: str
+    display_name: str
+    
+    mas: dict[str, float]
+    close: float
+    period: int
+    alignment: str
+    price_vs_ma: str
+    
+    signal: IndicatorSignal
+    
+    @property
+    def direction(self) -> str | None:
+        return self.signal["direction"]
+    
+    @property
+    def description(self) -> str | None:
+        return self.signal["description"]
 
 
 class MAIndicator(BaseIndicator):
@@ -19,16 +43,14 @@ class MAIndicator(BaseIndicator):
             df[f'ma{period}'] = ta.SMA(close, timeperiod=period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutput:
+    def summarize(self, df: DataFrame, latest_idx: int = -1) -> MAOutput:
         current = df.iloc[latest_idx]
         close = float(current['close'])
         
-        # 获取各周期均线
         ma_values = {}
         for period in self.periods:
             ma_values[f'ma{period}'] = float(current[f'ma{period}'])
         
-        # 判断多头/空头排列
         ma_list = [(period, ma_values[f'ma{period}']) for period in self.periods if not np.isnan(ma_values[f'ma{period}'])]
         
         if len(ma_list) >= 2:
@@ -37,36 +59,45 @@ class MAIndicator(BaseIndicator):
             
             if sorted_asc:
                 direction = SignalDirection.LONG
+                alignment = "bullish"
                 desc = "均线多头排列，强势上涨趋势"
             elif sorted_desc:
                 direction = SignalDirection.SHORT
+                alignment = "bearish"
                 desc = "均线空头排列，弱势下跌趋势"
             else:
                 direction = SignalDirection.NEUTRAL
+                alignment = "mixed"
                 desc = "均线缠绕，震荡整理"
         else:
             direction = SignalDirection.NEUTRAL
+            alignment = "insufficient"
             desc = "数据不足"
         
-        # 价格与均线关系
         if ma_values.get('ma20') and not np.isnan(ma_values['ma20']):
             if close > ma_values['ma20']:
-                price_vs_ma = f"价格>MA20"
+                price_vs_ma = "above"
             else:
-                price_vs_ma = f"价格<MA20"
+                price_vs_ma = "below"
         else:
-            price_vs_ma = ""
+            price_vs_ma = "unknown"
         
-        return {
-            "name": self.name,
-            "display_name": self.display_name,
-            "values": {**ma_values, "close": close},
-            "signal": {
+        ma_str = ", ".join(f"MA{p}={v:.2f}" for p, v in ma_values.items() if not np.isnan(v))
+        
+        return MAOutput(
+            name=self.name,
+            display_name=self.display_name,
+            mas=ma_values,
+            close=round(close, 6),
+            period=max(self.periods),
+            alignment=alignment,
+            price_vs_ma=price_vs_ma,
+            signal={
                 "direction": direction,
                 "strength": None,
-                "description": f"{desc}，{price_vs_ma}",
+                "description": f"{desc}，{ma_str}",
             },
-        }
+        )
     
     def get_column_names(self) -> list[str]:
         return [f'ma{period}' for period in self.periods]
