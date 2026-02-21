@@ -54,13 +54,12 @@ class CompositeStrategy:
             df = indicator.calculate(df)
         return df
     
-    def generate_summary(self, df: DataFrame, latest_idx: int = -1) -> StrategySummary:
+    def generate_summary(self, df: DataFrame) -> StrategySummary:
         """
         生成所有指标的摘要
         
         Args:
             df: 已计算指标的DataFrame
-            latest_idx: 最新数据索引
             
         Returns:
             包含所有指标摘要的汇总
@@ -68,7 +67,7 @@ class CompositeStrategy:
         summaries = []
         for indicator in self.indicators:
             try:
-                summary = indicator.summarize(df, latest_idx)
+                summary = indicator.summarize(df)
                 summaries.append(summary)
             except Exception as e:
                 # 跳过计算失败的指标
@@ -76,8 +75,8 @@ class CompositeStrategy:
         
         return {
             "indicators": summaries,
-            "latest_price": float(df.iloc[latest_idx]['close']),
-            "latest_time": str(df.iloc[latest_idx].get('datetime', '')),
+            "latest_price": float(df.iloc[-1]['close']),
+            "latest_time": str(df.iloc[-1].get('datetime', '')),
         }
     
     def get_all_column_names(self) -> list[str]:

@@ -43,8 +43,8 @@ class VolumeIndicator(BaseIndicator):
         df['volume_ratio'] = volume / df['volume_ma']
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> VolumeOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> VolumeOutput:
+        current = df.iloc[-1]
         volume = float(current['volume'])
         volume_ma = float(current['volume_ma'])
         volume_ratio = float(current['volume_ratio'])

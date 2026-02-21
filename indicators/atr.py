@@ -43,8 +43,8 @@ class ATRIndicator(BaseIndicator):
         df['atr'] = ta.ATR(high, low, close, timeperiod=self.period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> ATROutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> ATROutput:
+        current = df.iloc[-1]
         atr = float(current['atr'])
         close = float(current['close'])
         

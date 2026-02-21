@@ -53,8 +53,8 @@ class BollingerBandsIndicator(BaseIndicator):
         df['bb_lower'] = lower
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> BollingerOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> BollingerOutput:
+        current = df.iloc[-1]
         close = float(current['close'])
         bb_upper = float(current['bb_upper'])
         bb_middle = float(current['bb_middle'])

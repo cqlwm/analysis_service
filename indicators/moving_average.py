@@ -43,8 +43,8 @@ class MAIndicator(BaseIndicator):
             df[f'ma{period}'] = ta.SMA(close, timeperiod=period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> MAOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> MAOutput:
+        current = df.iloc[-1]
         close = float(current['close'])
         
         ma_values = {}

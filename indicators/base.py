@@ -45,13 +45,12 @@ class BaseIndicator(ABC):
         pass
     
     @abstractmethod
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> IndicatorOutputProtocol:
+    def summarize(self, df: DataFrame) -> IndicatorOutputProtocol:
         """
         提取指标摘要
         
         Args:
             df: 已计算指标的DataFrame
-            latest_idx: 最新数据的索引，默认-1
             
         Returns:
             包含值、信号、摘要的结构化输出

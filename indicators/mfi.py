@@ -48,8 +48,8 @@ class MFIIndicator(BaseIndicator):
         df['mfi'] = ta.MFI(high, low, close, volume, timeperiod=self.period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> MFIOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> MFIOutput:
+        current = df.iloc[-1]
         mfi = float(current['mfi'])
         
         if mfi > self.overbought:

@@ -147,13 +147,13 @@ class AlphaTrendIndicator(BaseIndicator):
         
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> AlphaTrendOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> AlphaTrendOutput:
+        current = df.iloc[-1]
         
         at_val = float(current[_ALPHA_TREND])
         close = float(current[_CLOSE])
         
-        idx = latest_idx if latest_idx >= 0 else len(df) + latest_idx
+        idx = len(df) - 1
         
         lookback = min(5, idx)
         at_series = df[_ALPHA_TREND]

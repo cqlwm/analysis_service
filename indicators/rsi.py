@@ -44,8 +44,8 @@ class RSIIndicator(BaseIndicator):
         df['rsi'] = ta.RSI(close, timeperiod=self.period)
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> RSIOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> RSIOutput:
+        current = df.iloc[-1]
         rsi = float(current['rsi'])
         
         if rsi > self.overbought:

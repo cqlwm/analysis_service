@@ -49,7 +49,7 @@ class TestIndicatorRegistry:
             def calculate(self, df):
                 return df
             
-            def summarize(self, df, latest_idx=-1):
+            def summarize(self, df):
                 return {"name": self.name, "values": {}, "signal": None, "summary": ""}
         
         # 注册

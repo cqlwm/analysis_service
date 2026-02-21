@@ -54,8 +54,8 @@ class MACDIndicator(BaseIndicator):
         df['macd_hist'] = hist
         return df
     
-    def summarize(self, df: DataFrame, latest_idx: int = -1) -> MACDOutput:
-        current = df.iloc[latest_idx]
+    def summarize(self, df: DataFrame) -> MACDOutput:
+        current = df.iloc[-1]
         macd = float(current['macd'])
         macd_signal = float(current['macd_signal'])
         macd_hist = float(current['macd_hist'])
