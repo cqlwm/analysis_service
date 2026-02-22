@@ -43,17 +43,8 @@ class AlphaTrendOutput:
     
     exit_warning: bool
     bars_since_exit: int | None
-    
-    signal: IndicatorSignal
-    
-    @property
-    def direction(self) -> str | None:
-        return self.signal["direction"]
-    
-    @property
-    def description(self) -> str | None:
-        return self.signal["description"]
 
+    overall: str
 
 class AlphaTrendIndicator(BaseIndicator):
     """
@@ -229,21 +220,14 @@ class AlphaTrendIndicator(BaseIndicator):
             ).sum()
         
         if entry_dir == "long" and at_mode == "rising" and price_above_at:
-            overall = "long"
+            overall = "bullish"
         elif entry_dir == "short" and at_mode == "falling" and not price_above_at:
-            overall = "short"
+            overall = "bearish"
         elif at_mode == "flat":
             overall = "neutral"
         else:
             overall = "weak"
-        
-        desc = (
-            f"AT {at_mode}，入场方向 {entry_dir}，"
-            f"持续 {bars_since_entry} 根K线，"
-            f"偏离入场价 {entry_deviation_pct}%，"
-            f"{'退出预警激活' if exit_warning else '无退出预警'}"
-        )
-        
+
         return AlphaTrendOutput(
             name=self.name,
             display_name=self.display_name,
@@ -259,11 +243,7 @@ class AlphaTrendIndicator(BaseIndicator):
             entry_deviation_pct=entry_deviation_pct,
             exit_warning=exit_warning,
             bars_since_exit=bars_since_exit,
-            signal={
-                "direction": overall,
-                "strength": None,
-                "description": desc,
-            },
+            overall=overall,
         )
     
     def get_column_names(self) -> list[str]:
