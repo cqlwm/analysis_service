@@ -21,6 +21,10 @@ _ALPHA_TREND = 'alpha_trend'
 _TREND_SHIFT2_CROSS = 'alpha_trend_shift2_cross_signal'
 _TREND_CLOSE_CROSS = 'alpha_trend_close_cross_signal'
 
+@dataclass
+class ExitTest:
+    at_val: float
+    close_price: float
 
 @dataclass
 class AlphaTrendOutput:
@@ -34,8 +38,7 @@ class AlphaTrendOutput:
     
     price_above_at: bool
     deviation_pct: float
-    support_tests: int
-    
+
     entry_direction: str
     bars_since_entry: int | None
     entry_price: float | None
@@ -43,6 +46,7 @@ class AlphaTrendOutput:
     
     exit_warning: bool
     bars_since_exit: int | None
+    exit_tests: list[ExitTest]
 
     overall: str
 
@@ -191,9 +195,19 @@ class AlphaTrendIndicator(BaseIndicator):
         
         exit_warning = False
         bars_since_exit = None
+        exit_tests = []
 
         if entry_idx:
             valid_exit = df[_TREND_CLOSE_CROSS].dropna()
+            for i in range(1, len(valid_exit) + 1):
+                exit_idx = int(valid_exit.index[-i])
+                if exit_idx > entry_idx:
+                    exit_tests.append(ExitTest(
+                        at_val=float(df[_ALPHA_TREND][exit_idx]),
+                        close_price=float(df[_CLOSE][exit_idx]),
+                    ))
+                else:
+                    break
 
             if len(valid_exit) > 0 and entry_dir != "none" and len(valid_entry) > 0:
                 last_exit_val = int(valid_exit.iloc[-1])
@@ -203,21 +217,6 @@ class AlphaTrendIndicator(BaseIndicator):
                 if last_exit_idx > entry_idx:
                     exit_warning = (last_exit_dir != entry_dir)
                     bars_since_exit = last_idx - last_exit_idx
-        
-        test_window = 20
-        start_i = max(0, last_idx - test_window + 1)
-        test_df = df.iloc[start_i: last_idx + 1]
-        
-        if price_above_at:
-            touched = (
-                (test_df[_LOW] <= test_df[_ALPHA_TREND]) &
-                (test_df[_CLOSE] > test_df[_ALPHA_TREND])
-            ).sum()
-        else:
-            touched = (
-                (test_df[_HIGH] >= test_df[_ALPHA_TREND]) &
-                (test_df[_CLOSE] < test_df[_ALPHA_TREND])
-            ).sum()
         
         if entry_dir == "long" and at_mode == "rising" and price_above_at:
             overall = "bullish"
@@ -236,13 +235,13 @@ class AlphaTrendIndicator(BaseIndicator):
             at_change_pct=at_change_pct,
             price_above_at=price_above_at,
             deviation_pct=deviation_pct,
-            support_tests=int(touched),
             entry_direction=entry_dir,
             bars_since_entry=bars_since_entry,
             entry_price=entry_price,
             entry_deviation_pct=entry_deviation_pct,
             exit_warning=exit_warning,
             bars_since_exit=bars_since_exit,
+            exit_tests=exit_tests,
             overall=overall,
         )
     
