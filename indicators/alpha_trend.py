@@ -5,8 +5,8 @@ from pandas import DataFrame
 from dataclasses import dataclass
 import talib as ta
 
-from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
-
+from indicators.base import BaseIndicator, IndicatorSignal
+from utils import get_decimal_places, truncate_decimal
 
 # 常量定义
 _HIGH = 'high'
@@ -69,6 +69,8 @@ class AlphaTrendIndicator(BaseIndicator):
     display_name = "Alpha Trend"
     atr_multiple = 1.0
     period = 8
+    at_lookback_period = 5
+    pct_places = 4
     
     def calculate(self, df: DataFrame) -> DataFrame:
         df = df.copy()
@@ -148,22 +150,27 @@ class AlphaTrendIndicator(BaseIndicator):
         return df
     
     def summarize(self, df: DataFrame) -> AlphaTrendOutput:
-        current = df.iloc[-1]
-        
-        at_val = float(current[_ALPHA_TREND])
-        close = float(current[_CLOSE])
-        
-        idx = len(df) - 1
-        
-        lookback = min(5, idx)
+        df = df.reset_index(drop=True, inplace=False)
+
+        last_idx = len(df) - 1
+
+        last_row = df.iloc[last_idx]
+        at_val = float(last_row[_ALPHA_TREND])
+        close = float(last_row[_CLOSE])
+        high = float(last_row[_HIGH])
+
+        price_places = get_decimal_places((close + high) / 2)
+
+        lookback = min(self.at_lookback_period, last_idx)
         at_series = df[_ALPHA_TREND]
-        at_recent = at_series.iloc[idx - lookback: idx + 1].dropna()
+        at_recent = at_series.iloc[last_idx - lookback: last_idx + 1].dropna()
         
         if len(at_recent) >= 2:
             at_start = float(at_recent.iloc[0])
             at_end = float(at_recent.iloc[-1])
-            at_change_pct = round((at_end - at_start) / at_start * 100, 5)
-            if abs(at_change_pct) < 0.005:
+            at_change_pct = round((at_end - at_start) / at_start * 100, self.pct_places)
+            # 判断变化幅度：绝对值小于0.01%时，判定为"持平"
+            if abs(at_change_pct) < 0.01:
                 at_mode = "flat"
             elif at_change_pct > 0:
                 at_mode = "rising"
@@ -174,50 +181,50 @@ class AlphaTrendIndicator(BaseIndicator):
             at_mode = "unknown"
         
         price_above_at = close > at_val
-        deviation_pct = round((close - at_val) / at_val * 100, 4)
+        deviation_pct = round((close - at_val) / at_val * 100, self.pct_places)
         
-        entry_series = df[_TREND_SHIFT2_CROSS].iloc[:idx + 1]
-        valid_entry = entry_series.dropna()
+        valid_entry = df[_TREND_SHIFT2_CROSS].dropna()
         
         if len(valid_entry) > 0:
             entry_idx = int(valid_entry.index[-1])
             entry_dir = "long" if int(valid_entry.iloc[-1]) == 1 else "short"
-            bars_since_entry = idx - entry_idx
-            entry_price = round(float(df.iloc[entry_idx][_CLOSE]), 6)
-            entry_deviation_pct = round((close - entry_price) / entry_price * 100, 4)
+            bars_since_entry = last_idx - entry_idx
+            entry_price = float(df.iloc[entry_idx][_CLOSE])
+            entry_deviation_pct = round((close - entry_price) / entry_price * 100, self.pct_places)
         else:
+            entry_idx = None
             entry_dir = "none"
             bars_since_entry = None
             entry_price = None
             entry_deviation_pct = None
         
-        exit_series = df[_TREND_CLOSE_CROSS].iloc[:idx + 1]
-        valid_exit = exit_series.dropna()
-        
         exit_warning = False
         bars_since_exit = None
-        
-        if len(valid_exit) > 0 and entry_dir != "none" and len(valid_entry) > 0:
-            last_exit_val = int(valid_exit.iloc[-1])
-            last_exit_idx = int(valid_exit.index[-1])
-            last_exit_dir = "long" if last_exit_val == 1 else "short"
-            
-            if last_exit_idx > entry_idx:
-                exit_warning = (last_exit_dir != entry_dir)
-                bars_since_exit = idx - last_exit_idx
+
+        if entry_idx:
+            valid_exit = df[_TREND_CLOSE_CROSS].dropna()
+
+            if len(valid_exit) > 0 and entry_dir != "none" and len(valid_entry) > 0:
+                last_exit_val = int(valid_exit.iloc[-1])
+                last_exit_idx = int(valid_exit.index[-1])
+                last_exit_dir = "long" if last_exit_val == 1 else "short"
+
+                if last_exit_idx > entry_idx:
+                    exit_warning = (last_exit_dir != entry_dir)
+                    bars_since_exit = last_idx - last_exit_idx
         
         test_window = 20
-        start_i = max(0, idx - test_window + 1)
-        test_df = df.iloc[start_i: idx + 1]
+        start_i = max(0, last_idx - test_window + 1)
+        test_df = df.iloc[start_i: last_idx + 1]
         
         if price_above_at:
             touched = (
-                (test_df[_LOW] <= test_df[_ALPHA_TREND] * 1.002) &
+                (test_df[_LOW] <= test_df[_ALPHA_TREND]) &
                 (test_df[_CLOSE] > test_df[_ALPHA_TREND])
             ).sum()
         else:
             touched = (
-                (test_df[_HIGH] >= test_df[_ALPHA_TREND] * 0.998) &
+                (test_df[_HIGH] >= test_df[_ALPHA_TREND]) &
                 (test_df[_CLOSE] < test_df[_ALPHA_TREND])
             ).sum()
         
@@ -240,7 +247,7 @@ class AlphaTrendIndicator(BaseIndicator):
         return AlphaTrendOutput(
             name=self.name,
             display_name=self.display_name,
-            at_value=round(at_val, 6),
+            at_value=truncate_decimal(at_val, price_places),
             at_mode=at_mode,
             at_change_pct=at_change_pct,
             price_above_at=price_above_at,
