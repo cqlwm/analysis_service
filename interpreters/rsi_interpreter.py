@@ -7,7 +7,7 @@ class RSIInterpreter(BaseInterpreter):
     
     indicator_name = "rsi"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         rsi = values.get('rsi', 0)
         period = values.get('period', 14)
         overbought = values.get('overbought', 70)
@@ -27,14 +27,8 @@ class RSIInterpreter(BaseInterpreter):
             implication = "多空双方力量相对均衡"
             action = "保持观望，等待趋势明确"
         
-        # 信号方向描述
-        direction_desc = ""
-        if signal and signal.get('direction'):
-            dir_map = {"long": "看多", "short": "看空", "neutral": "中性"}
-            direction_desc = f"，{dir_map.get(signal['direction'], signal['direction'])}"
-        
         summary = f"RSI({period})当前值为{rsi:.2f}，位于{zone}({oversold}-{overbought})，{implication}"
-        analysis = f"RSI指标显示当前市场{zone}。{implication}。建议: {action}。技术面上，RSI大于70表示超买，小于30表示超卖{direction_desc}。"
+        analysis = f"RSI指标显示当前市场{zone}。{implication}。建议: {action}。技术面上，RSI大于70表示超买，小于30表示超卖。"
         
         return {
             "summary": summary,

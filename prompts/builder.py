@@ -90,7 +90,7 @@ class PromptBuilder:
             if hasattr(ind, 'display_name'):
                 display_name = ind.display_name
                 indicator_name = ind.name
-                signal = ind.signal
+                signal = getattr(ind, 'signal', None)
                 # 提取所有数值属性用于显示
                 values = {}
                 for attr in dir(ind):
@@ -109,16 +109,16 @@ class PromptBuilder:
             if interpreter:
                 # 只有 AlphaTrend 有专门的 Output 类，其他指标传递字典
                 if hasattr(ind, 'display_name') and indicator_name == 'alpha_trend':
-                    interpreted = interpreter.interpret(ind, signal)
+                    interpreted = interpreter.interpret(ind)
                 else:
-                    interpreted = interpreter.interpret(values, signal)
+                    interpreted = interpreter.interpret(values)
                 summary = interpreted['summary']
                 analysis = interpreted['analysis']
             else:
                 # 使用默认解释器
                 default_interpreter = InterpreterRegistry.get('_default')
                 if default_interpreter:
-                    interpreted = default_interpreter.interpret(values, signal)
+                    interpreted = default_interpreter.interpret(values)
                     summary = interpreted['summary']
                     analysis = interpreted['analysis']
                 else:

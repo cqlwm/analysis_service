@@ -7,7 +7,7 @@ class MAInterpreter(BaseInterpreter):
     
     indicator_name = "ma"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         ma20 = values.get('ma20')
         ma50 = values.get('ma50')
         ma200 = values.get('ma200')

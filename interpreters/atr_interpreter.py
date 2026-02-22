@@ -7,7 +7,7 @@ class ATRInterpreter(BaseInterpreter):
     
     indicator_name = "atr"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         atr = values.get('atr', 0)
         atr_percent = values.get('atr_percent', 0)
         

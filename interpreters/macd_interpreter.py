@@ -7,7 +7,7 @@ class MACDInterpreter(BaseInterpreter):
     
     indicator_name = "macd"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         macd = values.get('macd', 0)
         macd_signal = values.get('macd_signal', 0)
         macd_hist = values.get('macd_hist', 0)

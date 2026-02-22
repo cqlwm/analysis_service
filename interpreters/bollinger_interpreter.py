@@ -7,7 +7,7 @@ class BollingerInterpreter(BaseInterpreter):
     
     indicator_name = "bollinger"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         bb_upper = values.get('bb_upper', 0)
         bb_middle = values.get('bb_middle', 0)
         bb_lower = values.get('bb_lower', 0)

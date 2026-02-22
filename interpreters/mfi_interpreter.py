@@ -7,7 +7,7 @@ class MFIInterpreter(BaseInterpreter):
     
     indicator_name = "mfi"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         mfi = values.get('mfi', 50)
         overbought = values.get('overbought', 80)
         oversold = values.get('oversold', 20)

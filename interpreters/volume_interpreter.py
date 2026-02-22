@@ -7,7 +7,7 @@ class VolumeInterpreter(BaseInterpreter):
     
     indicator_name = "volume"
     
-    def interpret(self, values: dict[str, float], signal: dict | None) -> InterpreterOutput:
+    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         volume = values.get('volume', 0)
         volume_ma = values.get('volume_ma', 0)
         volume_ratio = values.get('volume_ratio', 1)
