@@ -6,32 +6,24 @@ class ATRInterpreter(BaseInterpreter):
     """ATR 指标解释器"""
     
     indicator_name = "atr"
-    
+
     def interpret(self, values: dict[str, float]) -> InterpreterOutput:
         atr = values.get('atr', 0)
         atr_percent = values.get('atr_percent', 0)
-        
-        # 波动率判断
-        if atr_percent > 5:
-            volatility = "高波动"
-            risk_level = "高风险"
-            action = "适当缩小仓位，降低杠杆"
-        elif atr_percent > 2:
-            volatility = "中等波动"
-            risk_level = "中等风险"
-            action = "正常仓位管理"
-        else:
-            volatility = "低波动"
-            risk_level = "低风险"
-            action = "等待突破，谨慎操作"
-        
-        # 止盈止损建议
-        stop_loss_suggest = atr * 1.5
-        take_profit_suggest = atr * 3
-        
-        summary = f"ATR={atr:.6f} ({atr_percent:.2f}%)，{volatility}"
-        analysis = f"ATR显示当前市场波动率为{atr_percent:.2f}%，属于{volatility}。{risk_level}级别。建议: {action}。可根据ATR设置止损，建议止损幅度: {stop_loss_suggest:.4f}，止盈目标: {take_profit_suggest:.4f}。"
-        
+        stop_distance = values.get('stop_distance', atr * 1.5)
+        stop_multiple = values.get('stop_multiple', 1.5)
+        volatility = values.get('volatility', 'low')
+
+        summary = (
+            f"风险层(ATR): atr={atr:.6f}, atr_pct={atr_percent:.2f}%, "
+            f"stop_distance={stop_distance:.6f} (ATRx{stop_multiple})"
+        )
+        analysis = (
+            f"ATR用于风险管理，当前波动级别={volatility}。"
+            f"建议以ATRx{stop_multiple}设置动态止损距离({stop_distance:.6f})。"
+            "本层不用于判断趋势方向。"
+        )
+
         return {
             "summary": summary,
             "analysis": analysis,

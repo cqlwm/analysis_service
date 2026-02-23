@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 import pandas as pd
 import numpy as np
+from dataclasses import dataclass
 
 
 @pytest.fixture
@@ -41,6 +42,13 @@ class TestIndicatorRegistry:
     def test_register_and_get(self):
         """测试指标注册和获取"""
         from indicators import IndicatorRegistry, BaseIndicator
+        from indicators.base import IndicatorSignal
+
+        @dataclass
+        class DummyOutput:
+            name: str
+            display_name: str
+            signal: IndicatorSignal
         
         class DummyIndicator(BaseIndicator):
             name = "dummy"
@@ -50,7 +58,11 @@ class TestIndicatorRegistry:
                 return df
             
             def summarize(self, df):
-                return {"name": self.name, "values": {}, "signal": None, "summary": ""}
+                return DummyOutput(
+                    name=self.name,
+                    display_name=self.display_name,
+                    signal={"direction": None, "strength": None, "description": ""},
+                )
         
         # 注册
         IndicatorRegistry.register(DummyIndicator())
@@ -125,7 +137,7 @@ class TestMACDIndicator:
         summary = indicator.summarize(df)
         
         assert summary.name == 'macd'
-        assert summary.macd is not None
+        assert getattr(summary, 'macd', None) is not None
 
 
 class TestBollingerBandsIndicator:
@@ -154,7 +166,8 @@ class TestCompositeStrategy:
         df = strategy.calculate_all(sample_ohlcv_data)
         
         # 检查必要的列存在
-        assert 'rsi' in df.columns
+        assert 'ma20' in df.columns
+        assert 'alpha_trend' in df.columns
         assert 'macd' in df.columns
         assert 'bb_upper' in df.columns
     
@@ -168,7 +181,17 @@ class TestCompositeStrategy:
         
         assert 'indicators' in summary
         assert 'latest_price' in summary
+        assert 'score_matrix' in summary
+        assert 'total_score' in summary
+        assert 'decision' in summary
         assert len(summary['indicators']) > 0
+
+        matrix = summary['score_matrix']
+        assert 'trend' in matrix
+        assert 'structure' in matrix
+        assert 'momentum' in matrix
+        assert 'flow' in matrix
+        assert 'volatility' in matrix
     
     def test_custom_indicators(self, sample_ohlcv_data):
         """测试指定指标"""
@@ -199,7 +222,9 @@ class TestPromptBuilder:
         
         assert "BTC/USDT" in prompt
         assert "1h" in prompt
-        assert "RSI" in prompt or "MACD" in prompt
+        assert "MACD" in prompt
+        assert "五层评分矩阵" in prompt
+        assert "趋势层" in prompt
     
     def test_get_latest_values(self, sample_ohlcv_data):
         """测试获取最新值"""
@@ -235,3 +260,28 @@ class TestAlphaTrendIndicator:
         
         assert summary.name == 'alpha_trend'
         assert summary.at_value is not None
+
+
+class TestVolumeAndBollingerEnhancements:
+    """测试文档化增强字段"""
+
+    def test_volume_includes_obv(self, sample_ohlcv_data):
+        from indicators.volume import VolumeIndicator
+
+        indicator = VolumeIndicator()
+        df = indicator.calculate(sample_ohlcv_data)
+        summary = indicator.summarize(df)
+
+        assert 'obv' in df.columns
+        assert summary.obv is not None
+        assert summary.obv_trend in {'inflow', 'outflow', 'flat'}
+
+    def test_bollinger_includes_bandwidth(self, sample_ohlcv_data):
+        from indicators.bollinger import BollingerBandsIndicator
+
+        indicator = BollingerBandsIndicator()
+        df = indicator.calculate(sample_ohlcv_data)
+        summary = indicator.summarize(df)
+
+        assert summary.bandwidth_pct >= 0
+        assert summary.squeeze_state in {'compressed', 'normal', 'expanded'}

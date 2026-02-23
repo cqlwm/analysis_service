@@ -15,6 +15,8 @@ class ATROutput:
     
     atr: float
     atr_percent: float
+    stop_distance: float
+    stop_multiple: float
     period: int
     volatility: str
     
@@ -35,6 +37,7 @@ class ATRIndicator(BaseIndicator):
     name = "atr"
     display_name = "ATR"
     period = 14
+    stop_multiple = 1.5
     
     def calculate(self, df: DataFrame) -> DataFrame:
         high = np.asarray(df['high'].values, dtype=np.float64)
@@ -49,6 +52,7 @@ class ATRIndicator(BaseIndicator):
         close = float(current['close'])
         
         atr_pct = (atr / close) * 100 if close > 0 else 0
+        stop_distance = atr * self.stop_multiple
         
         if atr_pct > 5:
             volatility = "high"
@@ -65,6 +69,8 @@ class ATRIndicator(BaseIndicator):
             display_name=self.display_name,
             atr=round(atr, 6),
             atr_percent=round(atr_pct, 2),
+            stop_distance=round(stop_distance, 6),
+            stop_multiple=self.stop_multiple,
             period=self.period,
             volatility=volatility,
             signal={

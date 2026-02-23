@@ -1,24 +1,19 @@
 """Prompt构建层 - 将指标数据转化为自然语言描述"""
+from dataclasses import asdict, is_dataclass
+from typing import Any
+
 from pandas import DataFrame
 
-from strategies import CompositeStrategy, StrategySummary
 from interpreters import InterpreterRegistry
+from strategies import CompositeStrategy, StrategySummary
 
 
 class PromptBuilder:
-    """
-    Prompt构建器 - 将指标数据转化为LLM可理解的自然语言描述
-    
-    设计原则:
-    - 指标计算与prompt构建解耦
-    - 解释器独立，将结构化数据转换为自然语言
-    - 支持自定义模板
-    - 生成结构化的prompt便于LLM理解
-    """
-    
+    """Prompt构建器 - 输出符合五层指标系统的提示词"""
+
     def __init__(self, strategy: CompositeStrategy | None = None):
         self.strategy = strategy or CompositeStrategy()
-    
+
     def build_analysis_prompt(
         self,
         symbol: str,
@@ -26,26 +21,10 @@ class PromptBuilder:
         data_range: str,
         df: DataFrame,
     ) -> str:
-        """
-        构建分析Prompt
-        
-        Args:
-            symbol: 交易对，如 "BTC/USDT"
-            timeframe: 时间周期，如 "1h"
-            data_range: 数据范围，如 "2024-01-01 ~ 2024-01-31"
-            df: OHLCV数据
-            
-        Returns:
-            完整的分析Prompt
-        """
-        # 计算指标
         df = self.strategy.calculate_all(df)
         summary = self.strategy.generate_summary(df)
-        
-        # 构建prompt
-        prompt = self._build_prompt_content(symbol, timeframe, data_range, summary)
-        return prompt
-    
+        return self._build_prompt_content(symbol, timeframe, data_range, summary)
+
     def _build_prompt_content(
         self,
         symbol: str,
@@ -53,131 +32,123 @@ class PromptBuilder:
         data_range: str,
         summary: StrategySummary,
     ) -> str:
-        """构建prompt内容"""
-        # 头部信息
-        header = f"""📈 交易对: {symbol}
-⏰ 时间周期: {timeframe}
-📅 数据范围: {data_range}
+        header = (
+            f"📈 交易对: {symbol}\n"
+            f"⏰ 时间周期: {timeframe}\n"
+            f"📅 数据范围: {data_range}\n"
+            f"💵 最新价格: {summary['latest_price']:.6f}\n"
+        )
 
----"""
-        
-        # 技术指标部分（使用解释器生成自然语言）
-        indicators_section = self._format_indicators(summary['indicators'])
-        
-        # 底部任务说明
+        indicators_section = self._format_indicators(summary["indicators"])
+        score_section = self._format_score_matrix(summary)
+
         footer = """
-## 📝 任务要求
-请根据以上技术指标生成专业的行情分析报告，包括：
-1. 当前趋势判断
-2. 关键支撑/阻力位
-3. 入场理由
-4. 风险提示
-5. 交易建议
+## 📝 任务要求（严格执行）
+请按以下顺序分析，不要跳步：
+1. 趋势层：先判断大方向（MA三线+Alpha Trend）
+2. 结构层：判断当前价格位置（布林带位置与带宽）
+3. 动量层：判断MACD动量是否支持，若背离需重点提示
+4. 资金层：判断Volume+OBV是否确认参与度
+5. 风险层：结合ATR给出止损距离和仓位风险
 
-请使用markdown格式输出。
+请特别遵守：
+- MACD与ATR不能作为独立入场信号
+- 优先参考评分矩阵与总分，不要只凭单一指标下结论
+
+输出要求（markdown）：
+- 趋势判断
+- 关键支撑/阻力位
+- 入场条件与失效条件
+- 风险控制（止损、仓位）
+- 最终交易建议（高置信度/降仓位或等待/不入场）
 """
-        return header + indicators_section + footer
-    
-    def _format_indicators(self, indicators: list) -> str:
-        """格式化指标为表格（使用解释器生成自然语言）"""
+        return "\n".join([header, indicators_section, score_section, footer])
+
+    def _extract_values(self, indicator: Any) -> tuple[str, str, dict[str, Any], Any]:
+        if is_dataclass(indicator):
+            values = asdict(indicator)
+            name = values.get("name", "unknown")
+            display_name = values.get("display_name", name)
+            signal = values.get("signal") or values.get("signal_obj")
+            return str(name), str(display_name), values, signal
+
+        if hasattr(indicator, "__dict__"):
+            values = dict(indicator.__dict__)
+            name = values.get("name", "unknown")
+            display_name = values.get("display_name", name)
+            signal = values.get("signal") or values.get("signal_obj")
+            return str(name), str(display_name), values, signal
+
+        if isinstance(indicator, dict):
+            name = indicator.get("name", "unknown")
+            display_name = indicator.get("display_name", name)
+            signal = indicator.get("signal")
+            return str(name), str(display_name), indicator, signal
+
+        return "unknown", "unknown", {}, None
+
+    def _format_indicators(self, indicators: list[Any]) -> str:
         if not indicators:
-            return "\n暂无指标数据\n"
-        
-        lines = ["\n## 📊 技术指标分析\n"]
-        
-        for ind in indicators:
-            # 支持 dataclass 和 dict 两种格式
-            if hasattr(ind, 'display_name'):
-                display_name = ind.display_name
-                indicator_name = ind.name
-                signal = getattr(ind, 'signal', None)
-                # 提取所有数值属性用于显示
-                values = {}
-                for attr in dir(ind):
-                    if not attr.startswith('_') and not callable(getattr(ind, attr)):
-                        val = getattr(ind, attr)
-                        if isinstance(val, (int, float, str, bool)) or val is None:
-                            values[attr] = val
-            else:
-                display_name = ind.get('display_name', ind['name'])
-                indicator_name = ind['name']
-                signal = ind.get('signal')
-                values = ind.get('values', {})
-            
-            # 使用解释器生成自然语言描述
-            interpreter = InterpreterRegistry.get(indicator_name)
-            if interpreter:
-                # 只有 AlphaTrend 有专门的 Output 类，其他指标传递字典
-                if hasattr(ind, 'display_name') and indicator_name == 'alpha_trend':
-                    interpreted = interpreter.interpret(ind)
-                else:
-                    interpreted = interpreter.interpret(values)
-                summary = interpreted['summary']
-                analysis = interpreted['analysis']
-            else:
-                # 使用默认解释器
-                default_interpreter = InterpreterRegistry.get('_default')
-                if default_interpreter:
-                    interpreted = default_interpreter.interpret(values)
-                    summary = interpreted['summary']
-                    analysis = interpreted['analysis']
-                else:
-                    summary = "无数据"
-                    analysis = "无分析"
-            
-            # 指标名称
+            return "## 📊 技术指标分析\n暂无指标数据"
+
+        lines = ["## 📊 技术指标分析"]
+        for indicator in indicators:
+            name, display_name, values, _signal = self._extract_values(indicator)
+            interpreter = InterpreterRegistry.get(name) or InterpreterRegistry.get("_default")
+            interpreted = interpreter.interpret(values) if interpreter else {
+                "summary": "无数据",
+                "analysis": "无分析",
+            }
+
             lines.append(f"### {display_name}")
-            
-            # 解释器生成的摘要
-            lines.append(f"- {summary}")
-            
-            # 解释器生成的分析
-            lines.append(f"- {analysis}")
-            
-            # 信号方向
-            signal_direction = None
-            if signal:
-                if isinstance(signal, dict):
-                    signal_direction = signal.get('direction')
-                elif hasattr(signal, 'direction'):
-                    signal_direction = signal.direction
-            if signal_direction:
-                lines.append(f"- **信号方向**: {signal_direction}")
-            
-            # 关键值表格
-            if values:
-                table = self._build_value_table(values)
-                lines.append(table)
-            
-            lines.append("")  # 空行分隔
-        
+            lines.append(f"- {interpreted['summary']}")
+            lines.append(f"- {interpreted['analysis']}")
+
         return "\n".join(lines)
-    
-    def _build_value_table(self, values: dict) -> str:
-        """将字典转换为Markdown表格"""
-        if not values:
-            return ""
-        
-        lines = ["| 指标 | 数值 |", "|--------|--------|"]
-        for key, value in values.items():
-            if isinstance(value, float):
-                if abs(value) < 1:
-                    lines.append(f"| {key} | {value:.6f} |")
-                else:
-                    lines.append(f"| {key} | {value:.2f} |")
-            else:
-                lines.append(f"| {key} | {value} |")
-        
+
+    @staticmethod
+    def _decision_text(decision: str) -> str:
+        mapping = {
+            "high_confidence": "高置信度入场",
+            "reduced_or_wait": "降仓位入场或等待",
+            "no_entry": "不入场",
+        }
+        return mapping.get(decision, decision)
+
+    def _format_score_matrix(self, summary: StrategySummary) -> str:
+        score_matrix = summary.get("score_matrix", {})
+        total_score = summary.get("total_score", 0)
+        decision = self._decision_text(summary.get("decision", "no_entry"))
+
+        lines = [
+            "## 🎯 五层评分矩阵",
+            "| 层级 | 分值 | 依据 |",
+            "|------|------|------|",
+        ]
+
+        layer_names = {
+            "trend": "趋势层",
+            "structure": "结构层",
+            "momentum": "动量层",
+            "flow": "资金层",
+            "volatility": "波动率层",
+        }
+
+        for key in ["trend", "structure", "momentum", "flow", "volatility"]:
+            layer = score_matrix.get(key, {"score": 0, "reason": "无数据"})
+            score = layer.get("score", 0)
+            reason = layer.get("reason", "无数据")
+            lines.append(f"| {layer_names[key]} | {score:+d} | {reason} |")
+
+        lines.append("")
+        lines.append(f"- **总分**: {int(total_score):+d}")
+        lines.append(f"- **决策**: {decision}")
+        lines.append("- **阈值规则**: 总分>=3 高置信度；1~2 降仓位或等待；<=0 不入场")
+
         return "\n".join(lines)
-    
+
     def get_latest_values(self, df: DataFrame) -> dict[str, float]:
-        """
-        获取所有指标的最新值
-        
-        用于下游消费（如提取交易信号）
-        """
         df = self.strategy.calculate_all(df)
         column_names = self.strategy.get_all_column_names()
-        
         latest = df.iloc[-1]
         return {col: float(latest[col]) for col in column_names if col in latest}

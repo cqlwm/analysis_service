@@ -17,6 +17,8 @@ class BollingerOutput:
     middle: float
     lower: float
     position: float
+    bandwidth_pct: float
+    squeeze_state: str
     period: int
     std_dev: float
     zone: str
@@ -59,8 +61,16 @@ class BollingerBandsIndicator(BaseIndicator):
         bb_upper = float(current['bb_upper'])
         bb_middle = float(current['bb_middle'])
         bb_lower = float(current['bb_lower'])
-        
+
         position = (close - bb_lower) / (bb_upper - bb_lower) * 100 if bb_upper != bb_lower else 50
+        bandwidth_pct = ((bb_upper - bb_lower) / bb_middle) * 100 if bb_middle != 0 else 0
+
+        if bandwidth_pct < 4:
+            squeeze_state = "compressed"
+        elif bandwidth_pct > 10:
+            squeeze_state = "expanded"
+        else:
+            squeeze_state = "normal"
         
         if close > bb_upper:
             direction = SignalDirection.SHORT
@@ -90,6 +100,8 @@ class BollingerBandsIndicator(BaseIndicator):
             middle=round(bb_middle, 6),
             lower=round(bb_lower, 6),
             position=round(position, 2),
+            bandwidth_pct=round(bandwidth_pct, 4),
+            squeeze_state=squeeze_state,
             period=self.period,
             std_dev=self.std_dev,
             zone=zone,
