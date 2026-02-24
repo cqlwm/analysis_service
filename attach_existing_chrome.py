@@ -158,7 +158,7 @@ def binance_posting(symbol: Symbol, content: str):
         input_text(page, content.removeprefix('\n').removeprefix(symbol.clean))
         input_trade_widget(page, symbol)
         click_post(page)
-    target_url = "https://www.bmwweb.academy/zh-CN/square"
+    target_url = "https://www.binance.com/zh-CN/square"
     open_page(target_url, run)
 
 
