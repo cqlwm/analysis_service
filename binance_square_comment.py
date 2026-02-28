@@ -6,7 +6,6 @@ from typing import List, Dict
 from attach_existing_chrome import ensure_debug_chrome_running, open_page
 from llm import LLMManager
 from logger import setup_logger
-from playwright.sync_api import Locator
 
 logger = setup_logger('square_comment')
 
