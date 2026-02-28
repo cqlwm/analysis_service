@@ -123,7 +123,7 @@ def click_post(page: Page):
         if "发文" in button.text_content():
             button.click()
 
-def open_page(target_url: str, run: Callable[[Page], None]):
+def open_page(target_url: str, run: Callable[[Page], None], page_index: int = 0):
     ensure_debug_chrome_running()
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(DEBUG_URL)
@@ -133,11 +133,14 @@ def open_page(target_url: str, run: Callable[[Page], None]):
             context = browser.new_context()
 
         target_page: Page | None = None
+        count = 0
         for ctx in browser.contexts:
             for pg in ctx.pages:
-                if target_url in pg.url:
-                    target_page = pg
-                    break
+                if target_url == pg.url:
+                    if count == page_index:
+                        target_page = pg
+                        break
+                    count += 1
             if target_page:
                 break
 
@@ -152,7 +155,7 @@ def open_page(target_url: str, run: Callable[[Page], None]):
         run(page)
 
 
-TARGET_URL = "https://www.bmwweb.academy/zh-CN/square"
+TARGET_URL = "https://www.binance.com/zh-CN/square"
 
 
 def binance_posting(symbol: Symbol, content: str):
