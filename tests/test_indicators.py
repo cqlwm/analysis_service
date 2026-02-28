@@ -5,35 +5,25 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 import pandas as pd
-import numpy as np
 from dataclasses import dataclass
 
 
 @pytest.fixture
 def sample_ohlcv_data() -> pd.DataFrame:
-    """生成模拟OHLCV数据"""
-    np.random.seed(42)
-    n = 100
+    """获取真实OHLCV数据"""
+    import ccxt
     
-    # 生成价格数据
-    base_price = 100.0
-    prices = [base_price]
-    for _ in range(n - 1):
-        change = np.random.randn() * 2
-        prices.append(prices[-1] * (1 + change / 100))
+    exchange = ccxt.binance({
+        'enableRateLimit': True,
+        'options': {'defaultType': 'future'},
+    })
+    exchange.load_markets()
     
-    # 生成OHLCV数据
-    data = {
-        'timestamp': pd.date_range('2024-01-01', periods=n, freq='1h').astype(int) // 10**9,
-        'datetime': pd.date_range('2024-01-01', periods=n, freq='1h'),
-        'open': prices,
-        'high': [p * (1 + abs(np.random.randn()) * 0.02) for p in prices],
-        'low': [p * (1 - abs(np.random.randn()) * 0.02) for p in prices],
-        'close': prices,
-        'volume': [abs(np.random.randn() * 10000) for _ in range(n)],
-    }
+    ohlcv = exchange.fetch_ohlcv('BTC/USDT', timeframe='1h', limit=200)
+    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
     
-    return pd.DataFrame(data)
+    return df
 
 
 class TestIndicatorRegistry:
@@ -219,6 +209,7 @@ class TestPromptBuilder:
             data_range="2024-01-01 ~ 2024-01-05",
             df=sample_ohlcv_data
         )
+        print(prompt)
         
         assert "BTC/USDT" in prompt
         assert "1h" in prompt

@@ -36,7 +36,7 @@ class PromptBuilder:
             f"📈 交易对: {symbol}\n"
             f"⏰ 时间周期: {timeframe}\n"
             f"📅 数据范围: {data_range}\n"
-            f"💵 最新价格: {summary['latest_price']:.6f}\n"
+            f"💵 最新价格: {summary['latest_price']}\n"
         )
 
         indicators_section = self._format_indicators(summary["indicators"])
@@ -88,21 +88,23 @@ class PromptBuilder:
         return "unknown", "unknown", {}, None
 
     def _format_indicators(self, indicators: list[Any]) -> str:
-        if not indicators:
-            return "## 📊 技术指标分析\n暂无指标数据"
-
         lines = ["## 📊 技术指标分析"]
-        for indicator in indicators:
-            name, display_name, values, _signal = self._extract_values(indicator)
-            interpreter = InterpreterRegistry.get(name) or InterpreterRegistry.get("_default")
-            interpreted = interpreter.interpret(values) if interpreter else {
-                "summary": "无数据",
-                "analysis": "无分析",
-            }
 
-            lines.append(f"### {display_name}")
-            lines.append(f"- {interpreted['summary']}")
-            lines.append(f"- {interpreted['analysis']}")
+        if not indicators:
+            lines.append("暂无指标数据")
+        else:
+
+            for indicator in indicators:
+                name, display_name, values, _signal = self._extract_values(indicator)
+                interpreter = InterpreterRegistry.get(name) or InterpreterRegistry.get("_default")
+                interpreted = interpreter.interpret(values) if interpreter else {
+                    "summary": "无数据",
+                    "analysis": "无分析",
+                }
+
+                lines.append(f"### {display_name}")
+                lines.append(f"- {interpreted['summary']}")
+                lines.append(f"- {interpreted['analysis']}")
 
         return "\n".join(lines)
 

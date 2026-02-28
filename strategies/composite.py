@@ -216,15 +216,15 @@ class CompositeStrategy:
                 summary = indicator.summarize(df)
                 summaries.append(summary)
             except Exception as e:
-                # 跳过计算失败的指标
                 pass
 
         score_matrix, total_score, decision = self._build_score_matrix(summaries)
 
+        last_index = df.index[-1]
         return {
             "indicators": summaries,
-            "latest_price": float(df.iloc[-1]['close']),
-            "latest_time": str(df.iloc[-1].get('datetime', '')),
+            "latest_price": float(df.at[last_index, "close"]),
+            "latest_time": str(df.at[last_index, "datetime"]),
             "score_matrix": score_matrix,
             "total_score": total_score,
             "decision": decision,

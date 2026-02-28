@@ -30,7 +30,7 @@ def is_cdp_ready() -> bool:
         return False
 
 
-def ensure_debug_chrome_running() -> None:
+def ensure_debug_chrome_running():
     chrome_path = Path(CHROME_BIN)
     if not chrome_path.exists():
         raise FileNotFoundError(f"未找到本地 Chrome: {chrome_path}")
@@ -151,6 +151,10 @@ def open_page(target_url: str, run: Callable[[Page], None]):
 
         run(page)
 
+
+TARGET_URL = "https://www.bmwweb.academy/zh-CN/square"
+
+
 def binance_posting(symbol: Symbol, content: str):
     def run(page: Page):
         focus_input_box(page)
@@ -158,8 +162,7 @@ def binance_posting(symbol: Symbol, content: str):
         input_text(page, content.removeprefix('\n').removeprefix(symbol.clean))
         input_trade_widget(page, symbol)
         click_post(page)
-    target_url = "https://www.binance.com/zh-CN/square"
-    open_page(target_url, run)
+    open_page(TARGET_URL, run)
 
 
 def main() -> None:
@@ -170,8 +173,6 @@ def main() -> None:
             context = browser.contexts[0]
         else:
             context = browser.new_context()
-
-        TARGET_URL = "https://www.bmwweb.academy/zh-CN/square"
 
         target_page: Page | None = None
         for ctx in browser.contexts:
