@@ -1,5 +1,5 @@
 """Prompt构建层 - 将指标数据转化为自然语言描述"""
-from dataclasses import asdict, is_dataclass
+from dataclasses import is_dataclass
 from typing import Any
 
 from pandas import DataFrame
@@ -64,20 +64,18 @@ class PromptBuilder:
 """
         return "\n".join([header, indicators_section, score_section, footer])
 
-    def _extract_values(self, indicator: Any) -> tuple[str, str, dict[str, Any], Any]:
+    def _extract_values(self, indicator: Any) -> tuple[str, str, Any, Any]:
         if is_dataclass(indicator):
-            values = asdict(indicator)
-            name = values.get("name", "unknown")
-            display_name = values.get("display_name", name)
-            signal = values.get("signal") or values.get("signal_obj")
-            return str(name), str(display_name), values, signal
+            name = getattr(indicator, "name", "unknown")
+            display_name = getattr(indicator, "display_name", name)
+            signal = getattr(indicator, "signal", None) or getattr(indicator, "signal_obj", None)
+            return str(name), str(display_name), indicator, signal
 
         if hasattr(indicator, "__dict__"):
-            values = dict(indicator.__dict__)
-            name = values.get("name", "unknown")
-            display_name = values.get("display_name", name)
-            signal = values.get("signal") or values.get("signal_obj")
-            return str(name), str(display_name), values, signal
+            name = getattr(indicator, "name", "unknown")
+            display_name = getattr(indicator, "display_name", name)
+            signal = getattr(indicator, "signal", None) or getattr(indicator, "signal_obj", None)
+            return str(name), str(display_name), indicator, signal
 
         if isinstance(indicator, dict):
             name = indicator.get("name", "unknown")
@@ -85,7 +83,7 @@ class PromptBuilder:
             signal = indicator.get("signal")
             return str(name), str(display_name), indicator, signal
 
-        return "unknown", "unknown", {}, None
+        return "unknown", "unknown", None, None
 
     def _format_indicators(self, indicators: list[Any]) -> str:
         lines = ["## 📊 技术指标分析"]
@@ -95,15 +93,13 @@ class PromptBuilder:
         else:
 
             for indicator in indicators:
-                name, display_name, values, _signal = self._extract_values(indicator)
+                name, display_name, _values, _signal = self._extract_values(indicator)
                 interpreter = InterpreterRegistry.get(name) or InterpreterRegistry.get("_default")
-                interpreted = interpreter.interpret(values) if interpreter else {
-                    "summary": "无数据",
+                interpreted = interpreter.interpret(indicator) if interpreter else {
                     "analysis": "无分析",
                 }
 
                 lines.append(f"### {display_name}")
-                lines.append(f"- {interpreted['summary']}")
                 lines.append(f"- {interpreted['analysis']}")
 
         return "\n".join(lines)

@@ -5,10 +5,11 @@ from pandas import DataFrame
 from dataclasses import dataclass
 
 from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal
+from interpreters.base import IndicatorSummaryOutput
 
 
 @dataclass
-class VolumeOutput:
+class VolumeOutput(IndicatorSummaryOutput):
     """成交量指标输出"""
     name: str
     display_name: str

@@ -1,19 +1,20 @@
 """成交量指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.volume import VolumeOutput
 
 
-class VolumeInterpreter(BaseInterpreter):
+class VolumeInterpreter(BaseInterpreter[VolumeOutput]):
     """成交量指标解释器"""
     
     indicator_name = "volume"
 
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        volume = values.get('volume', 0)
-        volume_ma = values.get('volume_ma', 0)
-        ratio = values.get('ratio', values.get('volume_ratio', 1))
-        obv = values.get('obv', 0)
-        obv_slope = values.get('obv_slope', 0)
-        obv_trend = values.get('obv_trend', 'flat')
+    def interpret(self, indicator_summary: VolumeOutput) -> InterpreterOutput:
+        volume = indicator_summary.volume
+        volume_ma = indicator_summary.volume_ma
+        ratio = indicator_summary.ratio
+        obv = indicator_summary.obv
+        obv_slope = indicator_summary.obv_slope
+        obv_trend = indicator_summary.obv_trend
 
         summary = (
             f"资金层(Volume+OBV): volume={volume:.0f}, volume_ma={volume_ma:.0f}, "

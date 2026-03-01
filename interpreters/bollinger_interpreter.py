@@ -1,17 +1,18 @@
 """布林带指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.bollinger import BollingerOutput
 
 
-class BollingerInterpreter(BaseInterpreter):
+class BollingerInterpreter(BaseInterpreter[BollingerOutput]):
     """布林带指标解释器"""
     
     indicator_name = "bollinger"
 
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        position = values.get('position', values.get('bb_position', 50))
-        zone = values.get('zone', 'middle')
-        bandwidth_pct = values.get('bandwidth_pct', 0)
-        squeeze_state = values.get('squeeze_state', 'normal')
+    def interpret(self, indicator_summary: BollingerOutput) -> InterpreterOutput:
+        position = indicator_summary.position
+        zone = indicator_summary.zone
+        bandwidth_pct = indicator_summary.bandwidth_pct
+        squeeze_state = indicator_summary.squeeze_state
 
         summary = (
             f"结构层(Bollinger): zone={zone}, position={position:.2f}%, "

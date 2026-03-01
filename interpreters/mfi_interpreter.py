@@ -1,18 +1,18 @@
 """MFI 指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.mfi import MFIOutput
 
 
-class MFIInterpreter(BaseInterpreter):
+class MFIInterpreter(BaseInterpreter[MFIOutput]):
     """MFI 指标解释器"""
     
     indicator_name = "mfi"
     
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        mfi = values.get('mfi', 50)
-        overbought = values.get('overbought', 80)
-        oversold = values.get('oversold', 20)
+    def interpret(self, indicator_summary: MFIOutput) -> InterpreterOutput:
+        mfi = indicator_summary.mfi
+        overbought = indicator_summary.overbought
+        oversold = indicator_summary.oversold
         
-        # 判断区域
         if mfi > overbought:
             zone = "超买区域"
             implication = "资金流入可能放缓，价格可能回落"
@@ -30,7 +30,6 @@ class MFIInterpreter(BaseInterpreter):
             implication = "资金净流出，空头占优"
             action = "顺势做空"
         
-        # 资金流向
         if mfi > 50:
             flow = "资金净流入"
         elif mfi < 50:

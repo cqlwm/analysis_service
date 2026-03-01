@@ -5,10 +5,11 @@ from pandas import DataFrame
 from dataclasses import dataclass, field
 
 from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
+from interpreters.base import IndicatorSummaryOutput
 
 
 @dataclass
-class MAOutput:
+class MAOutput(IndicatorSummaryOutput):
     """移动平均线指标输出"""
     name: str
     display_name: str

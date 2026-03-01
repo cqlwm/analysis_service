@@ -1,19 +1,20 @@
 """均线指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.moving_average import MAOutput
 
 
-class MAInterpreter(BaseInterpreter):
+class MAInterpreter(BaseInterpreter[MAOutput]):
     """移动平均线指标解释器"""
     
     indicator_name = "ma"
 
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        mas = values.get('mas', {}) if isinstance(values.get('mas'), dict) else {}
-        ma20 = mas.get('ma20', values.get('ma20'))
-        ma50 = mas.get('ma50', values.get('ma50'))
-        ma200 = mas.get('ma200', values.get('ma200'))
-        alignment = values.get('alignment', 'mixed')
-        price_vs_ma = values.get('price_vs_ma', 'unknown')
+    def interpret(self, indicator_summary: MAOutput) -> InterpreterOutput:
+        mas = indicator_summary.mas
+        ma20 = mas.get('ma20', 0)
+        ma50 = mas.get('ma50', 0)
+        ma200 = mas.get('ma200', 0)
+        alignment = indicator_summary.alignment
+        price_vs_ma = indicator_summary.price_vs_ma
 
         if alignment == 'bullish':
             trend = '多头趋势'

@@ -1,7 +1,7 @@
 """解释器模块 - 将结构化指标数据转换为LLM易懂的自然语言"""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, TypedDict
+from typing import Any, TypedDict, TypeVar, Generic
 
 
 @dataclass
@@ -10,18 +10,21 @@ class IndicatorSummaryOutput:
     pass
 
 
+T = TypeVar('T', bound=IndicatorSummaryOutput)
+
+
 class InterpreterOutput(TypedDict):
     """解释器输出"""
     analysis: str  # 深度分析
 
 
-class BaseInterpreter(ABC):
+class BaseInterpreter(Generic[T], ABC):
     """解释器基类 - 负责将指标的结构化数据转换为自然语言"""
     
-    indicator_name: str = ""  # 对应的指标名称
+    indicator_name: str = ""
     
     @abstractmethod
-    def interpret(self, indicator_summary: IndicatorSummaryOutput) -> InterpreterOutput:
+    def interpret(self, indicator_summary: T) -> InterpreterOutput:
         """
         解释指标数据
         
@@ -56,7 +59,7 @@ class InterpreterRegistry:
         return list(cls._interpreters.keys())
 
 
-class DefaultInterpreter(BaseInterpreter):
+class DefaultInterpreter(BaseInterpreter[IndicatorSummaryOutput]):
     """默认解释器 - 当没有专门解释器时使用"""
     
     indicator_name = "_default"

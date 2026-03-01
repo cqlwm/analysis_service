@@ -1,22 +1,23 @@
 """MACD 指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.macd import MACDOutput
 
 
-class MACDInterpreter(BaseInterpreter):
+class MACDInterpreter(BaseInterpreter[MACDOutput]):
     """MACD 指标解释器"""
     
     indicator_name = "macd"
 
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        macd = values.get('macd', 0)
-        signal_line = values.get('signal_line', values.get('macd_signal', 0))
-        hist = values.get('hist', values.get('macd_hist', 0))
-        zero_axis = values.get('zero_axis', 'crossing')
-        hist_momentum = values.get('hist_momentum', 'flat')
-        support = values.get('momentum_support', 'neutral')
-        divergence = bool(values.get('divergence_warning', False))
-        bullish_divergence = bool(values.get('bullish_divergence', False))
-        bearish_divergence = bool(values.get('bearish_divergence', False))
+    def interpret(self, indicator_summary: MACDOutput) -> InterpreterOutput:
+        macd = indicator_summary.macd
+        signal_line = indicator_summary.signal_line
+        hist = indicator_summary.hist
+        zero_axis = indicator_summary.zero_axis
+        hist_momentum = indicator_summary.hist_momentum
+        support = indicator_summary.momentum_support
+        divergence = indicator_summary.divergence_warning
+        bullish_divergence = indicator_summary.bullish_divergence
+        bearish_divergence = indicator_summary.bearish_divergence
 
         if bearish_divergence:
             divergence_type = '顶背离'

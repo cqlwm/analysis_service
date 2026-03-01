@@ -1,18 +1,19 @@
 """ATR 指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.atr import ATROutput
 
 
-class ATRInterpreter(BaseInterpreter):
+class ATRInterpreter(BaseInterpreter[ATROutput]):
     """ATR 指标解释器"""
     
     indicator_name = "atr"
 
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        atr = values.get('atr', 0)
-        atr_percent = values.get('atr_percent', 0)
-        stop_distance = values.get('stop_distance', atr * 1.5)
-        stop_multiple = values.get('stop_multiple', 1.5)
-        volatility = values.get('volatility', 'low')
+    def interpret(self, indicator_summary: ATROutput) -> InterpreterOutput:
+        atr = indicator_summary.atr
+        atr_percent = indicator_summary.atr_percent
+        stop_distance = indicator_summary.stop_distance
+        stop_multiple = indicator_summary.stop_multiple
+        volatility = indicator_summary.volatility
 
         summary = (
             f"风险层(ATR): atr={atr:.6f}, atr_pct={atr_percent:.2f}%, "

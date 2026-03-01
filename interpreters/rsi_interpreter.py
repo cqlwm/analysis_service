@@ -1,19 +1,19 @@
 """RSI 指标解释器"""
 from interpreters.base import BaseInterpreter, InterpreterOutput
+from indicators.rsi import RSIOutput
 
 
-class RSIInterpreter(BaseInterpreter):
+class RSIInterpreter(BaseInterpreter[RSIOutput]):
     """RSI 指标解释器 - 将RSI数据转换为自然语言"""
     
     indicator_name = "rsi"
     
-    def interpret(self, values: dict[str, float]) -> InterpreterOutput:
-        rsi = values.get('rsi', 0)
-        period = values.get('period', 14)
-        overbought = values.get('overbought', 70)
-        oversold = values.get('oversold', 30)
+    def interpret(self, indicator_summary: RSIOutput) -> InterpreterOutput:
+        rsi = indicator_summary.rsi
+        period = indicator_summary.period
+        overbought = indicator_summary.overbought
+        oversold = indicator_summary.oversold
         
-        # 判断区域
         if rsi > overbought:
             zone = "超买区域"
             implication = "价格可能过热，存在回调风险"
