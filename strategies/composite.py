@@ -2,12 +2,12 @@
 from pandas import DataFrame
 from typing import Any, TypedDict
 
-from indicators import BaseIndicator, IndicatorRegistry, IndicatorOutputProtocol
+from indicators import IndicatorRegistry, IndicatorSummaryOutput
 
 
 class StrategySummary(TypedDict):
     """策略汇总输出"""
-    indicators: list[IndicatorOutputProtocol]
+    indicators: list[IndicatorSummaryOutput]
     latest_price: float
     latest_time: str
     score_matrix: dict[str, dict[str, Any]]
@@ -52,7 +52,7 @@ class CompositeStrategy:
                     self.indicators.append(indicator)
 
     @staticmethod
-    def _to_values(ind: IndicatorOutputProtocol) -> dict[str, Any]:
+    def _to_values(ind: IndicatorSummaryOutput) -> dict[str, Any]:
         values: dict[str, Any] = {}
         for attr in dir(ind):
             if attr.startswith('_'):
@@ -155,7 +155,7 @@ class CompositeStrategy:
             return {"score": -1, "reason": "波动率过高，需降风险"}
         return {"score": 0, "reason": "波动率正常"}
 
-    def _build_score_matrix(self, summaries: list[IndicatorOutputProtocol]) -> tuple[dict[str, dict[str, Any]], int, str]:
+    def _build_score_matrix(self, summaries: list[IndicatorSummaryOutput]) -> tuple[dict[str, dict[str, Any]], int, str]:
         by_name: dict[str, dict[str, Any]] = {}
         for summary in summaries:
             name = getattr(summary, "name", None)

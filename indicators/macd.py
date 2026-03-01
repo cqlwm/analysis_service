@@ -4,8 +4,7 @@ import numpy as np
 from pandas import DataFrame
 from dataclasses import dataclass
 
-from indicators.base import BaseIndicator, IndicatorOutputProtocol, IndicatorSignal, SignalDirection
-from interpreters.base import IndicatorSummaryOutput
+from indicators import BaseIndicator, SignalDirection, IndicatorSummaryOutput, IndicatorSignal
 
 
 @dataclass
@@ -136,7 +135,7 @@ class MACDIndicator(BaseIndicator):
 
         return bullish, bearish
     
-    def summarize(self, df: DataFrame) -> IndicatorOutputProtocol:
+    def summarize(self, df: DataFrame) -> IndicatorSummaryOutput:
         current = df.iloc[-1]
         macd = float(current['macd'])
         macd_signal = float(current['macd_signal'])
