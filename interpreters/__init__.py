@@ -1,10 +1,11 @@
 """解释器模块 - 将结构化指标数据转换为自然语言"""
-from interpreters.base import BaseInterpreter, InterpreterOutput, InterpreterRegistry, DefaultInterpreter
+from interpreters.base import BaseInterpreter, InterpreterOutput, InterpreterRegistry, DefaultInterpreter, IndicatorSummaryOutput
 
 # 导出常用类
 __all__ = [
     'BaseInterpreter',
     'InterpreterOutput',
+    'IndicatorSummaryOutput',
     'InterpreterRegistry',
     'DefaultInterpreter',
 ]

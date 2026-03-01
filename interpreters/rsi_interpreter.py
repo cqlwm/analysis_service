@@ -31,6 +31,5 @@ class RSIInterpreter(BaseInterpreter):
         analysis = f"RSI指标显示当前市场{zone}。{implication}。建议: {action}。技术面上，RSI大于70表示超买，小于30表示超卖。"
         
         return {
-            "summary": summary,
             "analysis": analysis,
         }

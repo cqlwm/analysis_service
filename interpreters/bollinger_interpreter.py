@@ -24,6 +24,5 @@ class BollingerInterpreter(BaseInterpreter):
         )
 
         return {
-            "summary": summary,
             "analysis": analysis,
         }

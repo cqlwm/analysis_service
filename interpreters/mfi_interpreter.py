@@ -42,6 +42,5 @@ class MFIInterpreter(BaseInterpreter):
         analysis = f"MFI(资金流量指标)显示当前市场{zone}。{implication}。当前{mfi:.2f}表示{flow}。建议: {action}。MFI结合了价格和成交量，比RSI更可靠。"
         
         return {
-            "summary": summary,
             "analysis": analysis,
         }

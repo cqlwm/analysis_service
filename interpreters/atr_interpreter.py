@@ -25,6 +25,5 @@ class ATRInterpreter(BaseInterpreter):
         )
 
         return {
-            "summary": summary,
             "analysis": analysis,
         }

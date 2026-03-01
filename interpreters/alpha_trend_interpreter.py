@@ -1,5 +1,6 @@
 """AlphaTrend 指标解释器"""
-from interpreters.base import BaseInterpreter, InterpreterOutput
+from typing import Any
+from interpreters.base import BaseInterpreter, InterpreterOutput, IndicatorSummaryOutput
 from indicators.alpha_trend import AlphaTrendOutput
 
 
@@ -8,7 +9,7 @@ class AlphaTrendInterpreter(BaseInterpreter):
     
     indicator_name = "alpha_trend"
 
-    def _extract_values(self, values: AlphaTrendOutput | dict) -> dict:
+    def _extract_values(self, values: Any) -> dict:
         if isinstance(values, dict):
             return {
                 "at_mode": values.get("at_mode", "unknown"),
@@ -52,8 +53,8 @@ class AlphaTrendInterpreter(BaseInterpreter):
                 "take_profit_price": values.take_profit_price,
             }
 
-    def interpret(self, values: AlphaTrendOutput | dict) -> str:
-        v = self._extract_values(values)
+    def interpret(self, indicator_summary: IndicatorSummaryOutput) -> InterpreterOutput:
+        v = self._extract_values(indicator_summary)
         
         at_mode = v["at_mode"]
         at_value = v["at_value"]
@@ -134,4 +135,6 @@ class AlphaTrendInterpreter(BaseInterpreter):
             "本层用于定方向和边界，不单独作为最终开仓决策，需结合其他指标确认。"
         )
 
-        return "\n".join(analysis_parts)
+        return {
+            "analysis": "\n".join(analysis_parts)
+        }

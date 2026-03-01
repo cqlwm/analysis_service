@@ -39,6 +39,5 @@ class MACDInterpreter(BaseInterpreter):
         )
 
         return {
-            "summary": summary,
             "analysis": analysis,
         }

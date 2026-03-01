@@ -33,6 +33,5 @@ class MAInterpreter(BaseInterpreter):
         )
 
         return {
-            "summary": summary,
             "analysis": analysis,
         }
