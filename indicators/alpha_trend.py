@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import talib as ta
 
 from indicators.base import BaseIndicator, IndicatorSignal
+from interpreters.base import IndicatorSummaryOutput
 from utils import get_decimal_places, truncate_decimal
 
 # 常量定义
@@ -28,7 +29,7 @@ class ExitTest:
 
 
 @dataclass
-class AlphaTrendOutput:
+class AlphaTrendOutput(IndicatorSummaryOutput):
     """Alpha Trend 指标输出"""
     name: str
     display_name: str

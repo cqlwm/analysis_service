@@ -1,6 +1,5 @@
 """AlphaTrend 指标解释器"""
-from typing import Any
-from interpreters.base import BaseInterpreter, InterpreterOutput, IndicatorSummaryOutput
+from interpreters.base import BaseInterpreter, InterpreterOutput
 from indicators.alpha_trend import AlphaTrendOutput
 
 
@@ -9,69 +8,23 @@ class AlphaTrendInterpreter(BaseInterpreter):
     
     indicator_name = "alpha_trend"
 
-    def _extract_values(self, values: Any) -> dict:
-        if isinstance(values, dict):
-            return {
-                "at_mode": values.get("at_mode", "unknown"),
-                "at_value": float(values.get("at_value", 0)),
-                "at_change_pct": values.get("at_change_pct"),
-                "deviation_pct": float(values.get("deviation_pct", 0)),
-                "entry_direction": values.get("entry_direction", "none"),
-                "bars_since_entry": int(values.get("bars_since_entry") or 0),
-                "entry_price": values.get("entry_price"),
-                "entry_deviation_pct": values.get("entry_deviation_pct"),
-                "exit_warning": bool(values.get("exit_warning", False)),
-                "overall": values.get("overall", "weak"),
-                "high_since_signal": values.get("high_since_signal"),
-                "low_since_signal": values.get("low_since_signal"),
-                "high_since_kline_count": values.get("high_since_kline_count"),
-                "low_since_kline_count": values.get("low_since_kline_count"),
-                "max_drawdown": values.get("max_drawdown"),
-                "key_alpha_values": values.get("key_alpha_values", []),
-                "stop_loss_price": values.get("stop_loss_price"),
-                "take_profit_price": values.get("take_profit_price"),
-            }
-        else:
-            return {
-                "at_mode": values.at_mode,
-                "at_value": values.at_value,
-                "at_change_pct": values.at_change_pct,
-                "deviation_pct": values.deviation_pct,
-                "entry_direction": values.entry_direction,
-                "bars_since_entry": values.bars_since_entry or 0,
-                "entry_price": values.entry_price,
-                "entry_deviation_pct": values.entry_deviation_pct,
-                "exit_warning": values.exit_warning,
-                "overall": values.overall,
-                "high_since_signal": values.high_since_signal,
-                "low_since_signal": values.low_since_signal,
-                "high_since_kline_count": values.high_since_kline_count,
-                "low_since_kline_count": values.low_since_kline_count,
-                "max_drawdown": values.max_drawdown,
-                "key_alpha_values": values.key_alpha_values or [],
-                "stop_loss_price": values.stop_loss_price,
-                "take_profit_price": values.take_profit_price,
-            }
-
-    def interpret(self, indicator_summary: IndicatorSummaryOutput) -> InterpreterOutput:
-        v = self._extract_values(indicator_summary)
-        
-        at_mode = v["at_mode"]
-        at_value = v["at_value"]
-        deviation_pct = v["deviation_pct"]
-        entry_dir = v["entry_direction"]
-        bars_since_entry = v["bars_since_entry"]
-        entry_price = v["entry_price"]
-        entry_deviation_pct = v["entry_deviation_pct"]
-        exit_warning = v["exit_warning"]
-        overall = v["overall"]
-        high_since_signal = v["high_since_signal"]
-        low_since_signal = v["low_since_signal"]
-        high_since_kline_count = v["high_since_kline_count"]
-        low_since_kline_count = v["low_since_kline_count"]
-        max_drawdown = v["max_drawdown"]
-        key_alpha_values = v["key_alpha_values"]
-        stop_loss_price = v["stop_loss_price"]
+    def interpret(self, indicator_summary: AlphaTrendOutput) -> InterpreterOutput:
+        at_mode = indicator_summary.at_mode
+        at_value = indicator_summary.at_value
+        deviation_pct = indicator_summary.deviation_pct
+        entry_dir = indicator_summary.entry_direction
+        bars_since_entry = indicator_summary.bars_since_entry or 0
+        entry_price = indicator_summary.entry_price
+        entry_deviation_pct = indicator_summary.entry_deviation_pct or 0
+        exit_warning = indicator_summary.exit_warning
+        overall = indicator_summary.overall
+        high_since_signal = indicator_summary.high_since_signal
+        low_since_signal = indicator_summary.low_since_signal
+        high_since_kline_count = indicator_summary.high_since_kline_count
+        low_since_kline_count = indicator_summary.low_since_kline_count
+        max_drawdown = indicator_summary.max_drawdown
+        key_alpha_values = indicator_summary.key_alpha_values or []
+        stop_loss_price = indicator_summary.stop_loss_price
         
         if entry_dir == "long":
             direction_desc = "多头边界"
