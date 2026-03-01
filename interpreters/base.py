@@ -1,14 +1,8 @@
 """解释器模块 - 将结构化指标数据转换为LLM易懂的自然语言"""
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, TypedDict, TypeVar, Generic
+from typing import TypedDict, TypeVar, Generic
 
-
-@dataclass
-class IndicatorSummaryOutput:
-    """指标摘要输出基类 - 作为 interpret 方法的入口类型"""
-    pass
-
+from indicators.base import IndicatorSummaryOutput
 
 T = TypeVar('T', bound=IndicatorSummaryOutput)
 

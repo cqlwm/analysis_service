@@ -1,5 +1,5 @@
 """指标模块 - 插件化技术指标系统"""
-from indicators.base import BaseIndicator, IndicatorOutputProtocol, SignalDirection
+from indicators.base import BaseIndicator, IndicatorSummaryOutput, SignalDirection
 from indicators.registry import IndicatorRegistry
 
 from indicators.alpha_trend import AlphaTrendOutput
@@ -13,7 +13,7 @@ from indicators.mfi import MFIOutput
 
 __all__ = [
     'BaseIndicator',
-    'IndicatorOutputProtocol', 
+    'IndicatorSummaryOutput',
     'SignalDirection',
     'IndicatorRegistry',
     'AlphaTrendOutput',

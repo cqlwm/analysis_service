@@ -1,18 +1,12 @@
 """指标模块基类定义"""
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
 from pandas import DataFrame
 from typing import TypedDict, Protocol, runtime_checkable
 
-
-class IndicatorSignal(TypedDict):
-    """指标信号"""
-    direction: str | None  # "long", "short", "neutral", None
-    strength: float | None  # 0-100
-    description: str
-
-
-@runtime_checkable
-class IndicatorOutputProtocol(Protocol):
+@dataclass
+class IndicatorSummaryOutput(Protocol):
     """指标输出协议 - 所有 Output 类必须实现此接口"""
     
     @property
@@ -21,9 +15,6 @@ class IndicatorOutputProtocol(Protocol):
     @property
     def display_name(self) -> str: ...
     
-    @property
-    def signal(self) -> IndicatorSignal: ...
-
 
 class BaseIndicator(ABC):
     """指标基类，所有指标需继承此类"""
@@ -45,7 +36,7 @@ class BaseIndicator(ABC):
         pass
     
     @abstractmethod
-    def summarize(self, df: DataFrame) -> IndicatorOutputProtocol:
+    def summarize(self, df: DataFrame) -> IndicatorSummaryOutput:
         """
         提取指标摘要
         

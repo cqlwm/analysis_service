@@ -5,8 +5,7 @@ from pandas import DataFrame
 from dataclasses import dataclass
 import talib as ta
 
-from indicators.base import BaseIndicator, IndicatorSignal
-from interpreters.base import IndicatorSummaryOutput
+from indicators import BaseIndicator, IndicatorSummaryOutput
 from utils import get_decimal_places, truncate_decimal
 
 # 常量定义
