@@ -52,7 +52,7 @@ class AlphaTrendInterpreter(BaseInterpreter):
                 "take_profit_price": values.take_profit_price,
             }
 
-    def interpret(self, values: AlphaTrendOutput | dict) -> InterpreterOutput:
+    def interpret(self, values: AlphaTrendOutput | dict) -> str:
         v = self._extract_values(values)
         
         at_mode = v["at_mode"]
@@ -97,51 +97,36 @@ class AlphaTrendInterpreter(BaseInterpreter):
         else:
             overall_desc = "趋势不明"
 
-        summary = (
-            f"AlphaTrend: at={at_value:.4f}, mode={mode_desc}, overall={overall_desc}, "
-            f"entry={entry_dir}, bars={bars_since_entry}, deviation={deviation_pct:+.2f}%"
-        )
-
-        analysis_parts = []
-
-        analysis_parts.append(
-            f"【趋势层】Alpha Trend 当前值为 {at_value:.4f}，处于{mode_desc}状态，整体判定为{overall_desc}。"
-        )
+        analysis_parts = [f"【趋势层】Alpha Trend 当前值为 {at_value}，处于{mode_desc}状态，整体判定为{overall_desc}。"]
 
         if entry_dir != "none" and entry_price:
-            price_status = "高于" if deviation_pct > 0 else "低于"
-            analysis_parts.append(
-                f"【信号时效】最近信号为{entry_dir}，已产生{bars_since_entry}根K线。"
-                f"入场价 {entry_price:.4f}，当前价格{price_status}入场价 {abs(deviation_pct):.2f}%。"
-            )
+            analysis_parts.append(f"【信号时效】最近信号为{entry_dir}，出现在此刻{bars_since_entry}根K线之前。")
+            analysis_parts.append(f"入场价 {entry_price}，当前价格{"高于" if entry_deviation_pct > 0 else "低于"}入场价 {abs(entry_deviation_pct):.2f}%。")
 
-            if entry_dir == "long":
-                if high_since_signal and high_since_kline_count:
-                    analysis_parts.append(
-                        f"信号后最高价 {high_since_signal:.4f}（{high_since_kline_count}根K线内）。"
-                    )
-                if max_drawdown:
-                    analysis_parts.append(f"最大回撤 {max_drawdown*100:.2f}%。")
-            else:
-                if low_since_signal and low_since_kline_count:
-                    analysis_parts.append(
-                        f"信号后最低价 {low_since_signal:.4f}（{low_since_kline_count}根K线内）。"
-                    )
-                if max_drawdown:
-                    analysis_parts.append(f"最大回撤 {max_drawdown*100:.2f}%。")
+            if high_since_signal and high_since_kline_count:
+                analysis_parts.append(f"信号后最高价 {high_since_signal}（信号发生后，第{high_since_kline_count}根K线）。")
+            if low_since_signal and low_since_kline_count:
+                analysis_parts.append(f"信号后最低价 {low_since_signal}（信号发生后，第{low_since_kline_count}根K线）。")
+            if max_drawdown:
+                analysis_parts.append(
+                    f"最大价格回撤 {max_drawdown*100:.2f}%。"
+                    f"注释：信号触发后，价格趋势向信号相反方向移动的过程称为回撤。"
+                    f"其中，看涨信号下，价格达到阶段性最高价后回调至低点的过程为回撤；"
+                    f"看跌信号下，价格达到阶段性最低价后反弹至高点的过程也为回撤。"
+                )
 
             if exit_warning:
-                analysis_parts.append("【⚠️风险提示】触发退出预警，价格已穿越Alpha Trend边界，需密切关注是否需要离场。")
+                analysis_parts.append("【风险提示】触发退出预警，价格已穿越Alpha Trend边界，需密切关注是否需要离场。")
             else:
                 analysis_parts.append("【信号状态】未触发退出预警，当前趋势仍在延续。")
 
             if stop_loss_price:
-                analysis_parts.append(f"建议止损位：{stop_loss_price:.4f}。")
+                analysis_parts.append(f"建议止损位：{stop_loss_price}。")
         else:
-            analysis_parts.append("【信号状态】当前无有效交易信号，等待下一 个信号产生。")
+            analysis_parts.append("【信号状态】当前无有效交易信号，等待下一个信号产生。")
 
         if key_alpha_values:
-            key_vals_str = ", ".join([f"{v:.4f}" for v in key_alpha_values[:3]])
+            key_vals_str = ", ".join([f"{v}" for v in key_alpha_values])
             analysis_parts.append(f"【关键价位】Alpha Trend 关键值：{key_vals_str}。")
 
         analysis_parts.append(
@@ -149,7 +134,4 @@ class AlphaTrendInterpreter(BaseInterpreter):
             "本层用于定方向和边界，不单独作为最终开仓决策，需结合其他指标确认。"
         )
 
-        return {
-            "summary": summary,
-            "analysis": "\n".join(analysis_parts),
-        }
+        return "\n".join(analysis_parts)

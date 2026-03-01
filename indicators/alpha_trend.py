@@ -71,6 +71,27 @@ def _find_recent_consecutive_alpha_trend(alpha_trend_values: np.ndarray, current
     return None
 
 
+def _calculate_clustered_support_resistance(curr_price: float, segments: list[dict[str, float]]) -> dict[str, list[float]]:
+    """Calculate support and resistance levels from segments"""
+    if not segments:
+        return {'support': [], 'resistance': []}
+
+    price_levels: set[float] = set()
+    for segment in segments:
+        price_levels.update([segment['high_price'], segment['low_price'], segment['alpha_trend']])
+
+    support = [p for p in price_levels if not np.isnan(p) and p <= curr_price]
+    support.sort(reverse=True)
+
+    resistance = [p for p in price_levels if not np.isnan(p) and p > curr_price]
+    resistance.sort()
+
+    return {
+        'support': support,
+        'resistance': resistance,
+    }
+
+
 class AlphaTrendIndicator(BaseIndicator):
     """
     Alpha Trend 指标
@@ -387,23 +408,3 @@ class AlphaTrendIndicator(BaseIndicator):
                     weight = 0
 
         return segments
-
-    def calculate_clustered_support_resistance(self, curr_price: float, segments: list[dict[str, float]]) -> dict[str, list[float]]:
-        """Calculate support and resistance levels from segments"""
-        if not segments:
-            return {'support': [], 'resistance': []}
-
-        price_levels: set[float] = set()
-        for segment in segments:
-            price_levels.update([segment['high_price'], segment['low_price'], segment['alpha_trend']])
-
-        support = [p for p in price_levels if not np.isnan(p) and p <= curr_price]
-        support.sort(reverse=True)
-
-        resistance = [p for p in price_levels if not np.isnan(p) and p > curr_price]
-        resistance.sort()
-
-        return {
-            'support': support,
-            'resistance': resistance,
-        }
