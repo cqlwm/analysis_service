@@ -8,24 +8,70 @@ class AlphaTrendInterpreter(BaseInterpreter):
     
     indicator_name = "alpha_trend"
 
-    def interpret(self, values: AlphaTrendOutput | dict) -> InterpreterOutput:
+    def _extract_values(self, values: AlphaTrendOutput | dict) -> dict:
         if isinstance(values, dict):
-            at_mode = values.get("at_mode", "unknown")
-            at_value = float(values.get("at_value", 0))
-            deviation_pct = float(values.get("deviation_pct", 0))
-            entry_dir = values.get("entry_direction", "none")
-            bars_since_entry = int(values.get("bars_since_entry") or 0)
-            exit_warning = bool(values.get("exit_warning", False))
-            overall = values.get("overall", "weak")
+            return {
+                "at_mode": values.get("at_mode", "unknown"),
+                "at_value": float(values.get("at_value", 0)),
+                "at_change_pct": values.get("at_change_pct"),
+                "deviation_pct": float(values.get("deviation_pct", 0)),
+                "entry_direction": values.get("entry_direction", "none"),
+                "bars_since_entry": int(values.get("bars_since_entry") or 0),
+                "entry_price": values.get("entry_price"),
+                "entry_deviation_pct": values.get("entry_deviation_pct"),
+                "exit_warning": bool(values.get("exit_warning", False)),
+                "overall": values.get("overall", "weak"),
+                "high_since_signal": values.get("high_since_signal"),
+                "low_since_signal": values.get("low_since_signal"),
+                "high_since_kline_count": values.get("high_since_kline_count"),
+                "low_since_kline_count": values.get("low_since_kline_count"),
+                "max_drawdown": values.get("max_drawdown"),
+                "key_alpha_values": values.get("key_alpha_values", []),
+                "stop_loss_price": values.get("stop_loss_price"),
+                "take_profit_price": values.get("take_profit_price"),
+            }
         else:
-            at_mode = values.at_mode
-            at_value = values.at_value
-            deviation_pct = values.deviation_pct
-            entry_dir = values.entry_direction
-            bars_since_entry = values.bars_since_entry or 0
-            exit_warning = values.exit_warning
-            overall = values.overall
+            return {
+                "at_mode": values.at_mode,
+                "at_value": values.at_value,
+                "at_change_pct": values.at_change_pct,
+                "deviation_pct": values.deviation_pct,
+                "entry_direction": values.entry_direction,
+                "bars_since_entry": values.bars_since_entry or 0,
+                "entry_price": values.entry_price,
+                "entry_deviation_pct": values.entry_deviation_pct,
+                "exit_warning": values.exit_warning,
+                "overall": values.overall,
+                "high_since_signal": values.high_since_signal,
+                "low_since_signal": values.low_since_signal,
+                "high_since_kline_count": values.high_since_kline_count,
+                "low_since_kline_count": values.low_since_kline_count,
+                "max_drawdown": values.max_drawdown,
+                "key_alpha_values": values.key_alpha_values or [],
+                "stop_loss_price": values.stop_loss_price,
+                "take_profit_price": values.take_profit_price,
+            }
 
+    def interpret(self, values: AlphaTrendOutput | dict) -> InterpreterOutput:
+        v = self._extract_values(values)
+        
+        at_mode = v["at_mode"]
+        at_value = v["at_value"]
+        deviation_pct = v["deviation_pct"]
+        entry_dir = v["entry_direction"]
+        bars_since_entry = v["bars_since_entry"]
+        entry_price = v["entry_price"]
+        entry_deviation_pct = v["entry_deviation_pct"]
+        exit_warning = v["exit_warning"]
+        overall = v["overall"]
+        high_since_signal = v["high_since_signal"]
+        low_since_signal = v["low_since_signal"]
+        high_since_kline_count = v["high_since_kline_count"]
+        low_since_kline_count = v["low_since_kline_count"]
+        max_drawdown = v["max_drawdown"]
+        key_alpha_values = v["key_alpha_values"]
+        stop_loss_price = v["stop_loss_price"]
+        
         if entry_dir == "long":
             direction_desc = "多头边界"
         elif entry_dir == "short":
@@ -33,19 +79,77 @@ class AlphaTrendInterpreter(BaseInterpreter):
         else:
             direction_desc = "无有效边界"
 
+        if at_mode == "rising":
+            mode_desc = "上升中"
+        elif at_mode == "falling":
+            mode_desc = "下降中"
+        elif at_mode == "flat":
+            mode_desc = "走平"
+        else:
+            mode_desc = "未知"
+
+        if overall == "bullish":
+            overall_desc = "多头趋势"
+        elif overall == "bearish":
+            overall_desc = "空头趋势"
+        elif overall == "neutral":
+            overall_desc = "中性整理"
+        else:
+            overall_desc = "趋势不明"
+
         summary = (
-            f"趋势层(AT): at={at_value:.4f}, mode={at_mode}, overall={overall}, "
+            f"AlphaTrend: at={at_value:.4f}, mode={mode_desc}, overall={overall_desc}, "
             f"entry={entry_dir}, bars={bars_since_entry}, deviation={deviation_pct:+.2f}%"
         )
 
-        warning_text = "触发退出预警" if exit_warning else "未触发退出预警"
-        analysis = (
-            f"Alpha Trend用于给出趋势边界，当前为{direction_desc}，{warning_text}。"
-            f"价格相对AT偏离{deviation_pct:+.2f}%，用于判断是否离边界过远。"
-            "本层用于定方向和边界，不单独作为最终开仓决策。"
+        analysis_parts = []
+
+        analysis_parts.append(
+            f"【趋势层】Alpha Trend 当前值为 {at_value:.4f}，处于{mode_desc}状态，整体判定为{overall_desc}。"
+        )
+
+        if entry_dir != "none" and entry_price:
+            price_status = "高于" if deviation_pct > 0 else "低于"
+            analysis_parts.append(
+                f"【信号时效】最近信号为{entry_dir}，已产生{bars_since_entry}根K线。"
+                f"入场价 {entry_price:.4f}，当前价格{price_status}入场价 {abs(deviation_pct):.2f}%。"
+            )
+
+            if entry_dir == "long":
+                if high_since_signal and high_since_kline_count:
+                    analysis_parts.append(
+                        f"信号后最高价 {high_since_signal:.4f}（{high_since_kline_count}根K线内）。"
+                    )
+                if max_drawdown:
+                    analysis_parts.append(f"最大回撤 {max_drawdown*100:.2f}%。")
+            else:
+                if low_since_signal and low_since_kline_count:
+                    analysis_parts.append(
+                        f"信号后最低价 {low_since_signal:.4f}（{low_since_kline_count}根K线内）。"
+                    )
+                if max_drawdown:
+                    analysis_parts.append(f"最大回撤 {max_drawdown*100:.2f}%。")
+
+            if exit_warning:
+                analysis_parts.append("【⚠️风险提示】触发退出预警，价格已穿越Alpha Trend边界，需密切关注是否需要离场。")
+            else:
+                analysis_parts.append("【信号状态】未触发退出预警，当前趋势仍在延续。")
+
+            if stop_loss_price:
+                analysis_parts.append(f"建议止损位：{stop_loss_price:.4f}。")
+        else:
+            analysis_parts.append("【信号状态】当前无有效交易信号，等待下一 个信号产生。")
+
+        if key_alpha_values:
+            key_vals_str = ", ".join([f"{v:.4f}" for v in key_alpha_values[:3]])
+            analysis_parts.append(f"【关键价位】Alpha Trend 关键值：{key_vals_str}。")
+
+        analysis_parts.append(
+            f"【偏离警示】价格相对AT偏离{deviation_pct:+.2f}%，偏离过大时需警惕回调/反弹风险。"
+            "本层用于定方向和边界，不单独作为最终开仓决策，需结合其他指标确认。"
         )
 
         return {
             "summary": summary,
-            "analysis": analysis,
+            "analysis": "\n".join(analysis_parts),
         }

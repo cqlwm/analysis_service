@@ -26,6 +26,7 @@ class ExitTest:
     at_val: float
     close_price: float
 
+
 @dataclass
 class AlphaTrendOutput:
     """Alpha Trend 指标输出"""
@@ -49,6 +50,26 @@ class AlphaTrendOutput:
     exit_tests: list[ExitTest]
 
     overall: str
+
+    # 增强字段
+    high_since_signal: float | None = None
+    low_since_signal: float | None = None
+    high_since_kline_count: int | None = None
+    low_since_kline_count: int | None = None
+    max_drawdown: float | None = None
+    key_alpha_values: list[float] | None = None
+    stop_loss_price: float | None = None
+    take_profit_price: float | None = None
+
+
+def _find_recent_consecutive_alpha_trend(alpha_trend_values: np.ndarray, current_index: int) -> float | None:
+    """Find recent consecutive alpha trend values for stop loss reference"""
+    for i in range(current_index - 2, -1, -1):
+        if not np.isnan(alpha_trend_values[i]) and i >= 2:
+            if alpha_trend_values[i] == alpha_trend_values[i + 1] == alpha_trend_values[i + 2]:
+                return float(alpha_trend_values[i])
+    return None
+
 
 class AlphaTrendIndicator(BaseIndicator):
     """
@@ -143,7 +164,7 @@ class AlphaTrendIndicator(BaseIndicator):
                     df.at[i, _TREND_CLOSE_CROSS] = np.nan
         
         return df
-    
+
     def summarize(self, df: DataFrame) -> AlphaTrendOutput:
         df = df.reset_index(drop=True, inplace=False)
 
@@ -153,6 +174,7 @@ class AlphaTrendIndicator(BaseIndicator):
         at_val = float(last_row[_ALPHA_TREND])
         close = float(last_row[_CLOSE])
         high = float(last_row[_HIGH])
+        low = float(last_row[_LOW])
 
         price_places = get_decimal_places((close + high) / 2)
 
@@ -164,7 +186,6 @@ class AlphaTrendIndicator(BaseIndicator):
             at_start = float(at_recent.iloc[0])
             at_end = float(at_recent.iloc[-1])
             at_change_pct = round((at_end - at_start) / at_start * 100, self.pct_places)
-            # 判断变化幅度：绝对值小于0.01%时，判定为"持平"
             if abs(at_change_pct) < 0.01:
                 at_mode = "flat"
             elif at_change_pct > 0:
@@ -180,6 +201,7 @@ class AlphaTrendIndicator(BaseIndicator):
         
         valid_entry = df[_TREND_SHIFT2_CROSS].dropna()
         
+        entry_idx = None
         if len(valid_entry) > 0:
             entry_idx = int(valid_entry.index[-1])
             entry_dir = "long" if int(valid_entry.iloc[-1]) == 1 else "short"
@@ -187,7 +209,6 @@ class AlphaTrendIndicator(BaseIndicator):
             entry_price = float(df.iloc[entry_idx][_CLOSE])
             entry_deviation_pct = round((close - entry_price) / entry_price * 100, self.pct_places)
         else:
-            entry_idx = None
             entry_dir = "none"
             bars_since_entry = None
             entry_price = None
@@ -209,7 +230,7 @@ class AlphaTrendIndicator(BaseIndicator):
                 else:
                     break
 
-            if len(valid_exit) > 0 and entry_dir != "none" and len(valid_entry) > 0:
+            if len(valid_entry) > 0 and entry_dir != "none" and len(valid_entry) > 0:
                 last_exit_val = int(valid_exit.iloc[-1])
                 last_exit_idx = int(valid_exit.index[-1])
                 last_exit_dir = "long" if last_exit_val == 1 else "short"
@@ -217,6 +238,44 @@ class AlphaTrendIndicator(BaseIndicator):
                 if last_exit_idx > entry_idx:
                     exit_warning = (last_exit_dir != entry_dir)
                     bars_since_exit = last_idx - last_exit_idx
+
+        high_since_signal = None
+        low_since_signal = None
+        high_since_kline_count = None
+        low_since_kline_count = None
+        max_drawdown = None
+        key_alpha_values = None
+        trailing_stop_price = None
+
+        if entry_idx and entry_price is not None:
+            high_idx = int(df[_HIGH].iloc[entry_idx:].idxmax())
+            low_idx = int(df[_LOW].iloc[entry_idx:].idxmin())
+            high_since_kline_count = high_idx - entry_idx
+            low_since_kline_count = low_idx - entry_idx
+            high_since_signal = float(df.iloc[high_idx][_HIGH])
+            low_since_signal = float(df.iloc[low_idx][_LOW])
+
+            alpha_trend_values = df[_ALPHA_TREND].values
+            stop_loss_reference_price = _find_recent_consecutive_alpha_trend(alpha_trend_values, entry_idx)
+
+            trailing_stop_price = float(last_row[_ALPHA_TREND])
+            if entry_dir == "long":
+                max_drawdown = (high_since_signal - close) / high_since_signal if high_since_signal else None
+                if trailing_stop_price <= entry_price:
+                    trailing_stop_price = stop_loss_reference_price
+            elif entry_dir == "short":
+                max_drawdown = (close - low_since_signal) / low_since_signal if low_since_signal else None
+                if trailing_stop_price >= entry_price:
+                    trailing_stop_price = stop_loss_reference_price
+
+            alpha_values = df[_ALPHA_TREND].iloc[entry_idx:].values
+            _n = 2 if len(alpha_values) > 10 else 1
+            value_counts_series = pd.Series(alpha_values).value_counts()
+            frequent_values = value_counts_series[value_counts_series >= _n].index.tolist()
+            key_alpha_values = sorted([float(v) for v in frequent_values], reverse=entry_dir == "short")
+
+            if trailing_stop_price:
+                trailing_stop_price = truncate_decimal(trailing_stop_price, price_places)
         
         if entry_dir == "long" and at_mode == "rising" and price_above_at:
             overall = "bullish"
@@ -243,8 +302,108 @@ class AlphaTrendIndicator(BaseIndicator):
             bars_since_exit=bars_since_exit,
             exit_tests=exit_tests,
             overall=overall,
+            high_since_signal=high_since_signal,
+            low_since_signal=low_since_signal,
+            high_since_kline_count=high_since_kline_count,
+            low_since_kline_count=low_since_kline_count,
+            max_drawdown=max_drawdown,
+            key_alpha_values=key_alpha_values,
+            stop_loss_price=trailing_stop_price,
+            take_profit_price=trailing_stop_price,
         )
     
     def get_column_names(self) -> list[str]:
         return [_ATR, _ATR_BASE_LOW, _ATR_BASE_HIGH, _MFI, _ALPHA_TREND, 
                 _TREND_SHIFT2_CROSS, _TREND_CLOSE_CROSS]
+
+    def calculate_trend_segments_stats(self, df: DataFrame) -> list[dict[str, float]]:
+        """
+        Calculate max and min high/low prices for each trend segment.
+        Trend segments are defined as periods between buy/sell signals.
+
+        Returns:
+            List of dicts with segment statistics
+        """
+        df = df.reset_index(drop=True, inplace=False)
+        
+        if len(df) < self.period or _TREND_SHIFT2_CROSS not in df.columns:
+            return []
+
+        high_values = df[_HIGH].values.astype(np.float64)
+        low_values = df[_LOW].values.astype(np.float64)
+        alpha_trend = df[_ALPHA_TREND].values
+        signal_values = df[_TREND_SHIFT2_CROSS].values
+
+        segments: list[dict[str, float]] = []
+
+        high_price = float('-inf')
+        low_price = float('inf')
+        weight = 0
+        
+        close = df[_CLOSE].values
+        price_places = get_decimal_places((close[-1] + high_values[-1]) / 2)
+        
+        for i in range(len(alpha_trend)):
+            if pd.notna(alpha_trend[i]):
+                if i >= 2 and alpha_trend[i] == alpha_trend[i-1] == alpha_trend[i-2]:
+                    high_price = max(high_price, high_values[i], high_values[i-1], high_values[i-2])
+                    low_price = min(low_price, low_values[i], low_values[i-1], low_values[i-2])
+                    weight += 1
+                else:
+                    if weight > 0:
+                        segments.append({
+                            'high_price': truncate_decimal(high_price, price_places),
+                            'low_price': truncate_decimal(low_price, price_places),
+                            'weight': weight,
+                            'alpha_trend': truncate_decimal(float(alpha_trend[i-1]), price_places)
+                        })
+                        weight = 0
+                        high_price = float('-inf')
+                        low_price = float('inf')
+
+        current_signal = None
+        for i in range(len(signal_values)):
+            signal_item = signal_values[i]
+            if current_signal is None:
+                if signal_item == 1 or signal_item == -1:
+                    current_signal = signal_item
+                    high_price = high_values[i]
+                    low_price = low_values[i]
+                    weight = 1
+            else:
+                high_price = max(high_price, high_values[i])
+                low_price = min(low_price, low_values[i])
+                weight += 1
+                if pd.notna(signal_item) and signal_item != current_signal:
+                    segments.append({
+                        'high_price': truncate_decimal(high_price, price_places),
+                        'low_price': truncate_decimal(low_price, price_places),
+                        'weight': weight - 2,
+                        'alpha_trend': truncate_decimal(float(alpha_trend[i-1]), price_places)
+                    })
+                    current_signal = signal_item
+                    high_price = high_values[i]
+                    low_price = low_values[i]
+                    weight = 0
+
+        return segments
+
+    def calculate_clustered_support_resistance(self, curr_price: float, segments: list[dict[str, float]]) -> dict[str, list[float]]:
+        """Calculate support and resistance levels from segments"""
+        if not segments:
+            return {'support': [], 'resistance': []}
+
+        price_levels: set[float] = set()
+        for segment in segments:
+            price_levels.update([segment['high_price'], segment['low_price'], segment['alpha_trend']])
+
+        support = [p for p in price_levels if not np.isnan(p) and p <= curr_price]
+        support.sort(reverse=True)
+
+        resistance = [p for p in price_levels if not np.isnan(p) and p > curr_price]
+        resistance.sort()
+
+        return {
+            'support': support,
+            'resistance': resistance,
+        }
