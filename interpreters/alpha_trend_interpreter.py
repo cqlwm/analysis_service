@@ -26,13 +26,6 @@ class AlphaTrendInterpreter(BaseInterpreter):
         key_alpha_values = indicator_summary.key_alpha_values or []
         stop_loss_price = indicator_summary.stop_loss_price
         
-        if entry_dir == "long":
-            direction_desc = "多头边界"
-        elif entry_dir == "short":
-            direction_desc = "空头边界"
-        else:
-            direction_desc = "无有效边界"
-
         if at_mode == "rising":
             mode_desc = "上升中"
         elif at_mode == "falling":
@@ -70,7 +63,7 @@ class AlphaTrendInterpreter(BaseInterpreter):
                 )
 
             if exit_warning:
-                analysis_parts.append("【风险提示】触发退出预警，价格已穿越Alpha Trend边界，需密切关注是否需要离场。")
+                analysis_parts.append("【风险提示】触发退出预警，价格已穿越 Alpha-Trend 边界，需密切关注是否需要离场。")
             else:
                 analysis_parts.append("【信号状态】未触发退出预警，当前趋势仍在延续。")
 
