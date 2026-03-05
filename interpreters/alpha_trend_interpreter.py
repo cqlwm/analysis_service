@@ -77,9 +77,10 @@ class AlphaTrendInterpreter(BaseInterpreter):
             analysis_parts.append(f"【关键价位】Alpha Trend 关键值：{key_vals_str}。")
 
         analysis_parts.append(
-            f"【偏离警示】价格相对AT偏离{deviation_pct:+.2f}%，偏离过大时需警惕回调/反弹风险。"
-            "本层用于定方向和边界，不单独作为最终开仓决策，需结合其他指标确认。"
+            f"【偏离说明】价格相对AT偏离{deviation_pct:+.2f}%，偏离过大时需警惕回调/反弹风险。"
+            "偏离过小时需要结合指标、或已有信息，判断价格是否已经处于深度回调中，还是价格正在逐渐远离AT线。"
         )
+        analysis_parts.append("本层用于定方向和边界，不单独作为最终开仓决策，需结合其他指标确认。")
 
         return {
             "analysis": "\n".join(analysis_parts)
