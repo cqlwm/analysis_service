@@ -193,7 +193,7 @@ def main():
     while monitor.running:
         symbols = monitor.get_high_volatility_symbols()
 
-        for symbol_data in symbols[:20]:
+        for symbol_data in symbols[:3]:
             sym = Symbol.parse(symbol_data['symbol'])
             timeframe = "1h"
 
