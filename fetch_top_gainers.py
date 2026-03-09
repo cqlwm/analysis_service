@@ -9,17 +9,18 @@ import ccxt
 
 from symbol import Symbol
 
+"""通过 ccxt 获取 Binance 合约市场 ticker 数据。"""
+exchange = ccxt.binance(
+    {
+        "enableRateLimit": True,
+        "options": {
+            "defaultType": "future",
+        },
+    }
+)
+exchange.load_markets()
+
 def fetch_futures_tickers() -> dict[str, Any]:
-    """通过 ccxt 获取 Binance 合约市场 ticker 数据。"""
-    exchange = ccxt.binance(
-        {
-            "enableRateLimit": True,
-            "options": {
-                "defaultType": "future",
-            },
-        }
-    )
-    exchange.load_markets()
     return exchange.fetch_tickers()
 
 
@@ -53,12 +54,7 @@ def extract_update_ts_ms(ticker: dict[str, Any]) -> int:
     return 0
 
 
-def extract_top_gainers(
-    tickers: dict[str, Any],
-    quote: str,
-    top_n: int,
-    max_age_seconds: int,
-) -> list[dict]:
+def extract_top_gainers(tickers: dict[str, Any], quote: str, top_n: int, max_age_seconds: int) -> list[dict]:
     """提取合约市场中指定计价币种的涨幅榜前 N。"""
     quote = quote.upper()
     rows: list[dict] = []
