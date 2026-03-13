@@ -3,7 +3,7 @@ import csv
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator, Tuple
 
 import ccxt
 
@@ -130,8 +130,11 @@ def build_hourly_price_cache(
             symbol_ranges[symbol] = (fetched_ms, range_end)
 
     price_cache: dict[str, list[tuple[int, float]]] = {}
+
     total_symbols = len(symbol_ranges)
-    for index, (symbol, (start_ms, end_ms)) in enumerate(sorted(symbol_ranges.items()), start=1):
+    symbols: Iterator[Tuple[int, str]] = enumerate(sorted(symbol_ranges.keys()), start=1)
+    for index, symbol in symbols:
+        start_ms, end_ms = symbol_ranges[symbol]
         print(f"预加载K线: {index}/{total_symbols} {symbol}", flush=True)
         price_cache[symbol] = fetch_hourly_prices_range(exchange, symbol, start_ms, end_ms)
     return price_cache
