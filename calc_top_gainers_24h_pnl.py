@@ -31,6 +31,11 @@ def parse_fetched_at_utc(value: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def normalize_fetched_at_utc(value: str) -> str:
+    dt = parse_fetched_at_utc(value)
+    return dt.replace(minute=0, second=0, microsecond=0).isoformat()
+
+
 def to_ccxt_symbol(raw_symbol: str) -> str:
     return Symbol.parse(raw_symbol).ccxt
 
@@ -149,6 +154,9 @@ def pick_first_price_at_or_after(
     while left < right:
         mid = (left + right) // 2
         mid_ts = points[mid][0]
+        if mid_ts == target_timestamp_ms:
+            left = mid
+            break
         if mid_ts < target_timestamp_ms:
             left = mid + 1
         else:
@@ -201,7 +209,7 @@ def calc_24h_pnl(
                 "fetched_at_utc": fetched_at,
                 "rank": rank,
                 "symbol": symbol_raw,
-                "entry_price": round(entry_price, 12) if entry_price > 0 else "",
+                "entry_price": entry_price,
                 "exit_price": "",
                 "invest_usdt": round(invest_usdt, 8),
                 "quantity": "",
@@ -470,6 +478,10 @@ def main() -> None:
     args = parser.parse_args()
 
     source_rows = load_rows(args.input)
+    for row in source_rows:
+        fetched_at = row.get("fetched_at_utc", "").strip()
+        if fetched_at:
+            row["fetched_at_utc"] = normalize_fetched_at_utc(fetched_at)
     exchange = build_exchange()
     hourly_price_cache = build_hourly_price_cache(exchange, source_rows)
     result_rows = calc_24h_pnl(
