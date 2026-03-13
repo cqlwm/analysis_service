@@ -106,7 +106,7 @@ def save_to_csv(rows: list[dict], output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     file_exists = output_path.exists()
 
-    fetched_at = datetime.now(timezone.utc).isoformat()
+    fetched_at = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).isoformat()
     fieldnames = [
         "rank",
         "fetched_at_utc",
