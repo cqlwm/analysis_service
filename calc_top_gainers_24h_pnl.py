@@ -475,6 +475,12 @@ def main() -> None:
         default=Path("data/top_gainers_24h_hourly_pnl.csv"),
         help="每个组合开仓后 24 小时内每小时盈亏输出路径",
     )
+    parser.add_argument(
+        "--start-time",
+        type=str,
+        default="2026-03-14T00:00:00",
+        help="开始时间（ISO格式），只计算该时间之后的记录，如 2025-01-01T00:00:00",
+    )
     args = parser.parse_args()
 
     source_rows = load_rows(args.input)
@@ -482,6 +488,18 @@ def main() -> None:
         fetched_at = row.get("fetched_at_utc", "").strip()
         if fetched_at:
             row["fetched_at_utc"] = normalize_fetched_at_utc(fetched_at)
+
+    if args.start_time:
+        start_dt = parse_fetched_at_utc(args.start_time)
+        source_rows = [
+            row for row in source_rows
+            if parse_fetched_at_utc(row.get("fetched_at_utc", "")).replace(tzinfo=timezone.utc) >= start_dt
+        ]
+        print(f"过滤后剩余 {len(source_rows)} 条记录（start_time: {args.start_time}）", flush=True)
+
+    if not source_rows:
+        print("没有符合条件的记录", flush=True)
+        return
     exchange = build_exchange()
     hourly_price_cache = build_hourly_price_cache(exchange, source_rows)
     result_rows = calc_24h_pnl(
