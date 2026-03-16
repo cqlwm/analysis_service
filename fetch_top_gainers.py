@@ -6,7 +6,9 @@ from typing import Any
 import time
 
 import ccxt
+import pymysql
 
+from config.database import get_db_config
 from symbol import Symbol
 
 """通过 ccxt 获取 Binance 合约市场 ticker 数据。"""
@@ -138,8 +140,50 @@ def save_to_csv(rows: list[dict], output_path: Path):
             )
 
 
+def save_to_db(rows: list[dict], fetched_at: datetime) -> None:
+    """保存涨幅榜结果到 MariaDB。"""
+    if not rows:
+        return
+
+    config = get_db_config()
+    conn = pymysql.connect(**config.dict)
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                INSERT INTO top_gainers (
+                    fetched_at_utc, rank, symbol, base, quote,
+                    change_percent, last_price, open_price, high_price, low_price,
+                    volume, quote_volume, trade_count, updated_at_ms
+                ) VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s
+                )
+            """
+            for index, row in enumerate(rows, start=1):
+                cursor.execute(sql, (
+                    fetched_at,
+                    index,
+                    row["symbol"],
+                    row["base"],
+                    row["quote"],
+                    row["change_percent"],
+                    row["last_price"],
+                    row["open_price"],
+                    row["high_price"],
+                    row["low_price"],
+                    row["volume"],
+                    row["quote_volume"],
+                    row["trade_count"],
+                    row["updated_at_ms"],
+                ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def main():
-    parser = argparse.ArgumentParser(description="获取涨幅榜前 N 币种并保存到 CSV")
+    parser = argparse.ArgumentParser(description="获取涨幅榜前 N 币种并保存到数据库")
     parser.add_argument("--top", type=int, default=10, help="榜单数量，默认 10")
     parser.add_argument("--quote", type=str, default="USDT", help="计价币种，默认 USDT")
     parser.add_argument(
@@ -149,10 +193,15 @@ def main():
         help="仅提取最近 N 秒内更新的 ticker，默认 60",
     )
     parser.add_argument(
-        "--output",
+        "--csv",
         type=Path,
-        default=Path("data/top_gainers.csv"),
-        help="输出 CSV 路径，默认 data/top_gainers.csv",
+        default=None,
+        help="额外保存到 CSV 文件路径",
+    )
+    parser.add_argument(
+        "--no-db",
+        action="store_true",
+        help="禁用数据库存储",
     )
     args = parser.parse_args()
 
@@ -163,9 +212,18 @@ def main():
         top_n=args.top,
         max_age_seconds=args.max_age_seconds,
     )
-    save_to_csv(top_gainers, args.output)
 
-    print(f"已保存 {len(top_gainers)} 条记录到: {args.output}")
+    if args.csv:
+        save_to_csv(top_gainers, args.csv)
+        print(f"已保存 {len(top_gainers)} 条记录到: {args.csv}")
+
+    if not args.no_db:
+        fetched_at = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        save_to_db(top_gainers, fetched_at)
+        print(f"已保存 {len(top_gainers)} 条记录到数据库")
+
+    if not args.csv and args.no_db:
+        print(f"已获取 {len(top_gainers)} 条记录（未持久化）")
 
 
 if __name__ == "__main__":
